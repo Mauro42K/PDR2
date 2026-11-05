@@ -7,7 +7,7 @@ import { pathToFileURL } from 'node:url';
 import { describe, expect, it } from 'vitest';
 
 // Criterios 2 y 4. Tres afirmaciones distintas, cada una con su propia evidencia:
-//  - el listener recibe cero conexiones TCP (evidencia de red);
+//  - el listener recibe cero conexiones TCP (evidencia de red; sockets Unix no se registran, ver conexiones.mjs);
 //  - el gancho de carga no registra ninguna llamada a `runner` del migrador ni a `spawn` (evidencia de invocación);
 //  - un control positivo demuestra que el gancho sí detecta esas llamadas cuando ocurren.
 const REGISTRO_GANCHOS = pathToFileURL(join(process.cwd(), 'scripts/probes/espia/registro.mjs')).href;
@@ -86,3 +86,28 @@ function correr(
     hijo.on('exit', (codigo) => resolver({ codigo, salida }));
   });
 }
+
+// Control de la prueba de no conexión: una conexión TCP real, lanzada a través de npm y tsx, debe quedar registrada.
+describe('control: el registro de conexiones ve una conexión TCP a través de npm y tsx', () => {
+  it('registra conexion:<puerto> cuando el proceso abre un socket TCP', async () => {
+    const espia = await preparar();
+    const listener = createServer((socket) => socket.destroy());
+    await new Promise<void>((resolver) => listener.listen(0, '127.0.0.1', resolver));
+    const puerto = (listener.address() as AddressInfo).port;
+    await correr('npm', ['exec', '--', 'tsx', '-e', `import('node:net').then(({ connect }) => connect(${puerto}, '127.0.0.1').on('error', () => {}))`], {}, espia.entorno);
+    await new Promise<void>((resolver) => listener.close(() => resolver()));
+    expect(await espia.llamadas()).toContain(`conexion:${puerto}`);
+  }, 60_000);
+});
+
+// Control del espía de procesos (ESM): el import por defecto y el import con nombre deben quedar registrados.
+describe('control: el espía ve spawn por import por defecto y por import con nombre', () => {
+  it('registra proceso-hijo en ambas formas', async () => {
+    const espia = await preparar();
+    // Debe ser ESM: `tsx -e` se ejecuta como CJS y el espía no ve los imports CJS (límite documentado).
+    await correr('npm', ['exec', '--', 'tsx', 'scripts/probes/fixtures/espia-spawn.mts'], {}, espia.entorno);
+    const llamadas = await espia.llamadas();
+    expect(llamadas.filter((l) => l === 'proceso-hijo').length).toBeGreaterThanOrEqual(2);
+  }, 60_000);
+});
+

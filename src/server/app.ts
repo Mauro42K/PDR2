@@ -27,8 +27,11 @@ export async function buildApp(options: AppOptions = {}): Promise<{ app: Fastify
   const app = Fastify({ logger: options.logger ?? false, bodyLimit: 5 * 1024 * 1024 });
 
   app.get('/api/health', async (_request, reply) => {
-    if (!pool) return { status: 'ok' };
-    try { await pool.query('SELECT 1'); return { status: 'ok' }; }
+    // Identidad del servidor de prueba (D-P1): solo con PDR2_RUN_TOKEN, que define el runner E2E.
+    const runId = process.env.PDR2_RUN_TOKEN;
+    const cuerpo = runId ? { status: 'ok', runId } : { status: 'ok' };
+    if (!pool) return cuerpo;
+    try { await pool.query('SELECT 1'); return cuerpo; }
     catch { return reply.code(503).send({ status: 'unavailable' }); }
   });
   app.get('/api/projects', async () => repo.listProjects());

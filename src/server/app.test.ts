@@ -110,3 +110,21 @@ describe('Fastify API', () => {
     expect((await repository.getProject(project.id))?.dependencies).toHaveLength(1);
   });
 });
+
+describe('identidad del servidor de prueba (D-P1)', () => {
+  afterEach(() => { delete process.env.PDR2_RUN_TOKEN; });
+
+  it('sin PDR2_RUN_TOKEN, /api/health responde exactamente {status:"ok"}', async () => {
+    delete process.env.PDR2_RUN_TOKEN;
+    const { app } = await setup();
+    const respuesta = await app.inject({ method: 'GET', url: '/api/health' });
+    expect(respuesta.json()).toEqual({ status: 'ok' });
+  });
+
+  it('con PDR2_RUN_TOKEN, /api/health refleja el token como runId', async () => {
+    process.env.PDR2_RUN_TOKEN = 'token-de-prueba-123';
+    const { app } = await setup();
+    const respuesta = await app.inject({ method: 'GET', url: '/api/health' });
+    expect(respuesta.json()).toEqual({ status: 'ok', runId: 'token-de-prueba-123' });
+  });
+});
