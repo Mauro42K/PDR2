@@ -1,0 +1,48 @@
+{
+  "name": "pdr2-local",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=24.22.1 <25"
+  },
+  "scripts": {
+    "dev": "npm run db:migrate && concurrently -k \"npm:dev:api\" \"npm:dev:web\"",
+    "dev:api": "tsx watch src/server/index.ts",
+    "dev:web": "vite --host 0.0.0.0",
+    "build": "tsc -p tsconfig.server.json && vite build",
+    "start": "node dist-server/server/index.js",
+    "db:migrate": "tsx scripts/migrate.ts",
+    "test": "tsx scripts/test.ts",
+    "test:unit": "vitest run",
+    "test:watch": "vitest",
+    "test:e2e": "tsx scripts/test-e2e.ts",
+    "test:probes": "vitest run --config vitest.probes.config.ts",
+    "typecheck": "tsc --noEmit -p tsconfig.json && tsc --noEmit -p tsconfig.server.json"
+  },
+  "dependencies": {
+    "@fastify/static": "10.1.8",
+    "drizzle-orm": "0.45.4",
+    "fastify": "5.12.7",
+    "pg": "8.23.1",
+    "react": "19.3.1",
+    "react-dom": "19.3.1"
+  },
+  "devDependencies": {
+    "@playwright/test": "1.64.1",
+    "@testing-library/jest-dom": "^6.9.1",
+    "@testing-library/react": "^16.3.0",
+    "@types/pg": "8.23.1",
+    "@types/react": "^19.2.0",
+    "@types/react-dom": "^19.2.0",
+    "@vitejs/plugin-react": "^5.0.0",
+    "concurrently": "^9.2.0",
+    "eslint": "10.13.0",
+    "jsdom": "^27.0.0",
+    "node-pg-migrate": "9.0.0",
+    "tsx": "^4.20.0",
+    "typescript": "7.0.2",
+    "vite": "8.3.5",
+    "vitest": "5.0.5"
+  }
+}
