@@ -1,6 +1,6 @@
 import { expect, test } from '@playwright/test';
 
-// F3-02: hitos, barra resumen de grupo, vistas, avance y predecesoras por número (02-DOCS/wiki/specifications/fase-F3-seguimiento.md).
+// F3-02: hitos, barra resumen de grupo, vistas, avance y predecesoras por número.
 const id = '22222222-2222-4222-8222-222222222222';
 const group = { id: 'dddddddd-dddd-4ddd-8ddd-dddddddddddd', name: 'Diseño', position: 0, note: '', color: 'blue' };
 const tasks = [
