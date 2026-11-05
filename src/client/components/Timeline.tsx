@@ -16,7 +16,7 @@ const MILESTONE_PX = 16;
 
 export function Timeline({ project, rows, rangeTasks = project.tasks, locale, zoom = 34, rowHeight = 46, showProgress = false, onMove, onSelect, onKeyboardNotice }: Props) {
   const displayRows: TimelineRow[] = rows ?? project.tasks.map((task) => ({ kind: 'task', task }));
-  const groupColors = useMemo(() => new Map((project.groups ?? []).map((group) => [group.id, group.color])), [project.groups]);
+  const groupsById = useMemo(() => new Map((project.groups ?? []).map((group) => [group.id, group])), [project.groups]);
   const t = messages(locale); const scroller = useRef<HTMLDivElement>(null); const confirmDialog = useRef<HTMLDialogElement>(null); const focusAfterDecision = useRef<HTMLElement | null>(null); const [confirmingBlur, setConfirmingBlur] = useState(false); const [gesture, setGesture] = useState<{ id: string; x: number; start: string; end: string; mode: 'move' | 'left' | 'right'; preview: number } | null>(null); const [keyboardEdit, setKeyboardEdit] = useState<{ id: string; start: string; end: string; action: 'move' | 'resize' } | null>(null);
   const [viewport, setViewport] = useState({ left: 0, width: 800 });
   const [segment, setSegment] = useState(0);
@@ -142,8 +142,13 @@ export function Timeline({ project, rows, rangeTasks = project.tasks, locale, zo
             const summary = groupSummary(rangeTasks.filter((item) => item.groupId === row.id));
             const left = summary ? Math.max(0, px(summary.startDate)) : 0;
             const right = summary ? Math.min(count * dayWidth, px(summary.endDate) + dayWidth) : 0;
-            return <div key={`group-${row.id}`} className="timeline-row timeline-group-row" style={{ width: `${count * dayWidth}px` }} aria-hidden="true">
-              {summary && right > left && <div className="group-summary-bar" style={{ left: `${left}px`, width: `${right - left}px` }}><span className="group-summary-progress" style={{ width: `${summary.progress}%` }} /></div>}
+            const width = right - left;
+            const labelPosition = width >= 40 ? 'inside' : count * dayWidth - right >= 40 ? 'after' : 'before';
+            return <div key={`group-${row.id}`} className="timeline-row timeline-group-row" style={{ width: `${count * dayWidth}px` }}>
+              {summary && width > 0 && <div className="group-summary-bar" role="img" aria-label={`${groupsById.get(row.id)?.name}: ${summary.progress} %`} style={{ left: `${left}px`, width: `${width}px` }}>
+                <span className="group-summary-progress" style={{ width: `${summary.progress}%` }} />
+                <span className={`group-summary-percent group-summary-percent-${labelPosition}`} aria-hidden="true">{summary.progress} %</span>
+              </div>}
             </div>;
           }
           const task = row.task;
@@ -156,7 +161,7 @@ export function Timeline({ project, rows, rangeTasks = project.tasks, locale, zo
           return <div className="timeline-row" key={task.id} style={{ width: `${count * dayWidth}px` }}>
             <div className="grid-lines" style={{ backgroundPosition: `0 0, ${saturdayOffset}px 0` }} />
             {overlapsSegment && task.isMilestone && <button id={`task-bar-${task.id}`} type="button" className={`milestone ${active || keyboardActive ? 'bar-preview' : ''}`} aria-label={`${task.name}, ${start}`} aria-describedby="timeline-keyboard-help" aria-pressed={keyboardActive} style={{ left: `${px(start) + dayWidth / 2 - MILESTONE_PX / 2}px` }} onFocus={() => onSelect(task.id)} onPointerDown={(event) => pointerDown(event, task, 'move')} onKeyDown={(event) => barKeyDown(event, task)}><span aria-hidden="true">◆</span></button>}
-            {overlapsSegment && !task.isMilestone && <button id={`task-bar-${task.id}`} type="button" className={`bar${groupColors.get(task.groupId ?? '') ? ` group-color-${groupColors.get(task.groupId ?? '')}` : ''} ${active || keyboardActive ? 'bar-preview' : ''}`} aria-label={`${task.name}, ${start}–${end}`} aria-describedby="timeline-keyboard-help" aria-pressed={keyboardActive} style={{ left: `${left}px`, width: `${width}px` }} onFocus={() => onSelect(task.id)} onBlur={(event) => { if (keyboardEdit?.id === task.id && (keyboardEdit.start !== task.startDate || keyboardEdit.end !== task.endDate)) { focusAfterDecision.current = event.relatedTarget instanceof HTMLElement ? event.relatedTarget : null; setConfirmingBlur(true); } else if (keyboardEdit?.id === task.id) setKeyboardPreview(null); }} onPointerDown={(event) => pointerDown(event, task, 'move')} onKeyDown={(event) => barKeyDown(event, task)}>
+            {overlapsSegment && !task.isMilestone && <button id={`task-bar-${task.id}`} type="button" className={`bar${groupsById.get(task.groupId ?? '')?.color ? ` group-color-${groupsById.get(task.groupId ?? '')?.color}` : ''} ${active || keyboardActive ? 'bar-preview' : ''}`} aria-label={`${task.name}, ${start}–${end}`} aria-describedby="timeline-keyboard-help" aria-pressed={keyboardActive} style={{ left: `${left}px`, width: `${width}px` }} onFocus={() => onSelect(task.id)} onBlur={(event) => { if (keyboardEdit?.id === task.id && (keyboardEdit.start !== task.startDate || keyboardEdit.end !== task.endDate)) { focusAfterDecision.current = event.relatedTarget instanceof HTMLElement ? event.relatedTarget : null; setConfirmingBlur(true); } else if (keyboardEdit?.id === task.id) setKeyboardPreview(null); }} onPointerDown={(event) => pointerDown(event, task, 'move')} onKeyDown={(event) => barKeyDown(event, task)}>
               {showProgress && <span className="bar-progress" style={{ width: `${task.progress}%` }} aria-hidden="true" />}
               {startInSegment && <span className="resize-handle start-handle" aria-label={t.start} onPointerDown={(event) => { event.stopPropagation(); pointerDown(event, task, 'left'); }} />}
               <span className="bar-label">{active && gesture.preview ? `${start} → ${end}` : task.name}</span>

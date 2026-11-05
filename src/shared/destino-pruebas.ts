@@ -4,7 +4,7 @@
 const HOST = '127.0.0.1';
 const PUERTO = '55432';
 const BASE = 'pdr2_test';
-const USUARIO = 'pdr2';
+const USUARIOS = new Set(['pdr2', 'pdr2_qa']);
 const ESPERADO = `${HOST}:${PUERTO}/${BASE}`;
 
 export type DestinoPruebas = { url: string; host: string; puerto: string; base: string };
@@ -26,10 +26,10 @@ export function verificarDestino(cadena: string): VeredictoDestino {
   const encontrado = `${url.hostname}:${url.port || '5432'}/${url.pathname.replace(/^\//, '')}`;
   const protocoloValido = url.protocol === 'postgres:' || url.protocol === 'postgresql:';
   const destinoExacto = url.hostname === HOST && url.port === PUERTO && url.pathname === `/${BASE}`;
-  const identidadExacta = url.username === USUARIO && url.search === '' && url.hash === '';
+  const identidadExacta = USUARIOS.has(url.username) && url.search === '' && url.hash === '';
 
   if (!protocoloValido || !destinoExacto) return rechazo(encontrado);
-  if (!identidadExacta) return rechazo(encontrado, 'el usuario o los parámetros no coinciden con el destino permitido');
+  if (!identidadExacta) return rechazo(encontrado, 'se requiere pdr2 o pdr2_qa, sin parámetros ni fragmento');
 
   return { tipo: 'permitido', destino: { url: cadena, host: HOST, puerto: PUERTO, base: BASE } };
 }

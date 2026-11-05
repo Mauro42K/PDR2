@@ -13,6 +13,7 @@
     "build": "tsc -p tsconfig.server.json && vite build",
     "start": "node dist-server/server/index.js",
     "db:migrate": "tsx scripts/migrate.ts",
+    "copia:base": "tsx scripts/copia-base.ts",
     "test": "tsx scripts/test.ts",
     "test:unit": "vitest run",
     "test:watch": "vitest",

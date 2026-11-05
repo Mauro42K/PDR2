@@ -518,6 +518,9 @@ button:focus-visible, input:focus-visible, select:focus-visible { outline: 3px s
 .task-create-dialog .modal-heading { margin-bottom: 14px; }
 .task-create-dates { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 12px; }
 .task-create-dialog .date-control { min-height: 40px; }
+.task-create-milestone { display: flex; align-items: center; gap: 8px; width: fit-content; margin-block: 8px; }
+.date-control-button:disabled { cursor: default; color: var(--text-secondary); }
+.date-control-button:disabled .date-control-icon { visibility: hidden; }
 .task-create-dialog select { box-sizing: border-box; width: 100%; min-height: 40px; padding: 0 9px; border: 1px solid var(--line-control); border-radius: 5px; background: var(--surface); color: var(--text-label); font: inherit; }
 @media (pointer: coarse) {
   .task-create-dialog input, .task-create-dialog select { min-height: 44px; font-size: 16px; }
@@ -798,8 +801,12 @@ button:focus-visible, input:focus-visible, select:focus-visible { outline: 3px s
 .task-column-labels > .name-col-handle { top: 0; bottom: auto; height: var(--row-h, 46px); }
 
 /* F3-02: hitos, barra resumen de grupo, avance, alertas, seguimiento y resumen. */
-.group-summary-bar { position: absolute; top: 14px; height: 18px; border-radius: 4px; background: var(--blue-pale); border: 1px solid var(--blue); overflow: hidden; pointer-events: none; }
-.group-summary-progress { position: absolute; left: 0; top: 0; bottom: 0; background: var(--blue); opacity: 0.45; }
+.group-summary-bar { position: absolute; top: calc((var(--row-h, 46px) - 18px) / 2); height: 18px; border-radius: 4px; background: var(--blue-pale); border: 1px solid var(--blue); pointer-events: none; }
+.group-summary-progress { position: absolute; inset: 0 auto 0 0; border-radius: 3px; background: var(--blue); opacity: 0.45; }
+.group-summary-percent { position: absolute; top: 50%; transform: translateY(-50%); padding: 0 3px; border-radius: 3px; background: var(--blue-pale); color: var(--text-strong); font-size: 10px; line-height: 13px; font-weight: 600; white-space: nowrap; }
+.group-summary-percent-inside { left: 50%; transform: translate(-50%, -50%); }
+.group-summary-percent-after { left: calc(100% + 3px); }
+.group-summary-percent-before { right: calc(100% + 3px); }
 .milestone { position: absolute; top: 50%; transform: translateY(-50%); width: 16px; height: 16px; margin: 0; padding: 0; border: 0; background: transparent; color: var(--blue); font-size: 16px; line-height: 16px; text-align: center; cursor: pointer; }
 .milestone.bar-preview { outline: 2px solid var(--focus-ring); outline-offset: 2px; border-radius: 3px; }
 .bar-progress { position: absolute; left: 0; bottom: 0; height: 3px; background: var(--text-on-accent); opacity: 0.85; pointer-events: none; }
@@ -812,7 +819,7 @@ button:focus-visible, input:focus-visible, select:focus-visible { outline: 3px s
 .tracking-controls { display: inline-flex; gap: 6px; margin-left: 8px; }
 .tracking-controls select, .tracking-controls input { min-height: 28px; font-size: 12px; border: 1px solid var(--line-control); border-radius: 6px; background: var(--surface); color: var(--text-strong); }
 .tracking-controls input { width: 56px; padding: 0 6px; }
-@media (max-width: 1120px) { .tracking-controls input { display: none; } }
+.tracking-status-icon { flex: 0 0 18px; text-align: center; font-size: 15px; line-height: 1; color: var(--text-strong); }
 .task-detail-check { flex-direction: row; align-items: center; gap: 8px; }
 .summary-view { padding: 16px 20px; display: grid; gap: 14px; }
 .summary-readonly { margin: 0; font-size: 12px; color: var(--text-muted); }
@@ -842,3 +849,13 @@ button:focus-visible, input:focus-visible, select:focus-visible { outline: 3px s
 @media (max-width: 1120px) { .card-toolbar { height: auto; min-height: 44px; padding-block: 6px; } }
 
 .alert-dot { display: inline-block; flex: 0 0 auto; width: 8px; height: 8px; margin-left: 6px; border-radius: 50%; background: currentColor; }
+
+.planning-notice { color: var(--text-secondary); font-size: 11px; line-height: 1.2; }
+.task-title-cell:has(.task-row-messages) { position: relative; align-self: stretch; height: var(--row-h, 46px); box-sizing: border-box; gap: 4px; padding-bottom: 13px; }
+.task-title-cell:has(.task-row-messages) > input { min-height: 0; }
+.task-title-cell:has(.task-row-messages) .tracking-controls { margin-left: 0; }
+.task-row-messages { position: absolute; inset: auto 4px 1px 12px; display: flex; gap: 6px; align-items: baseline; white-space: nowrap; }
+.tracking-alert { flex: 0 0 auto; font-size: 11px; line-height: 1.2; font-weight: 600; }
+.planning-notice-row { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.task-title-cell:has(.task-row-messages) .tracking-controls :is(select, input) { min-height: 20px; height: 20px; }
+.planning-notice-detail { margin: 8px 0 0; }

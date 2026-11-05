@@ -31,6 +31,19 @@ describe.skipIf(!enabled)('PostgreSQL persistence on isolated pdr2_test', () => 
     expect(replaced?.tasks).toHaveLength(1);
     expect(replaced?.dependencies).toHaveLength(0);
   });
+  it('keeps a reordered task order and task numbers after reloading (AF-20)', async () => {
+    const project = await repository.createProject(`Automated order ${crypto.randomUUID()}`); projectIds.push(project.id);
+    await repository.createTask(project.id, { id: crypto.randomUUID(), name: 'Alpha', startDate: '2026-02-27', endDate: '2026-02-27', status: 'pending', progress: 0, isMilestone: false });
+    await repository.createTask(project.id, { id: crypto.randomUUID(), name: 'Beta', startDate: '2026-02-28', endDate: '2026-02-28', status: 'pending', progress: 0, isMilestone: false });
+    const current = await repository.getProject(project.id);
+    const [first, second] = current!.tasks;
+    const swapped = { ...current!, tasks: current!.tasks.map((task) => task.id === first.id ? { ...task, position: second.position } : task.id === second.id ? { ...task, position: first.position } : task) };
+    await repository.replaceProject(project.id, swapped);
+    const reloaded = await repository.getProject(project.id);
+    expect(reloaded!.tasks.map((task) => task.name)).toEqual(['Beta', 'Alpha']);
+    expect(reloaded!.tasks.find((task) => task.name === 'Alpha')!.number).toBe(first.number);
+    expect(reloaded!.tasks.find((task) => task.name === 'Beta')!.number).toBe(second.number);
+  });
   it('replaces a different project from an export without colliding with source task IDs', async () => {
     const source = await repository.createProject(`Import source ${crypto.randomUUID()}`); projectIds.push(source.id);
     await repository.createTask(source.id, { id: crypto.randomUUID(), name: 'Source predecessor', startDate: '2026-04-01', endDate: '2026-04-02', status: 'pending', progress: 0, isMilestone: false });
