@@ -1,0 +1,10 @@
+#!/bin/sh
+set -eu
+PDR2_NODE_DIR='[ruta-local-ssd]/Tools/node-versions/v24.22.1/bin'
+if [ ! -x "$PDR2_NODE_DIR/node" ]; then
+  printf '%s\n' 'Node compartido no disponible; conectar el SSD.' >&2
+  exit 1
+fi
+PATH="$PDR2_NODE_DIR:$PATH"
+export PATH
+exec "$@"

@@ -1,0 +1,6 @@
+{
+  "migrations-dir": "migrations",
+  "direction": "up",
+  "database-url-var": "DATABASE_URL",
+  "verbose": true
+}
