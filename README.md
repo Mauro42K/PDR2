@@ -27,7 +27,7 @@ PDR 2.0 helps you plan and follow a project as a timeline:
 
 ### Status and limitations
 
-PDR 2.0 is a release candidate for version 1.0. The project follows a documented roadmap: see [`02-DOCS/wiki/roadmap.md`](02-DOCS/wiki/roadmap.md) and the functional scope in [`02-DOCS/wiki/alcance-funcional.md`](02-DOCS/wiki/alcance-funcional.md).
+PDR 2.0 is a release candidate for version 1.0. Open work and known limitations are tracked in the [issues](https://github.com/Mauro42K/PDR2/issues).
 
 Not included yet:
 
@@ -100,7 +100,7 @@ npm test            # unit and integration tests against the test database
 
 ### Contributing
 
-Issues and pull requests are welcome. Before opening a pull request, run `npm run typecheck` and `npm test`. The project's working rules are in [`02-DOCS/wiki/sdd/constitution.md`](02-DOCS/wiki/sdd/constitution.md) and [`REVIEW.md`](REVIEW.md).
+Issues and pull requests are welcome. Read [`CONTRIBUTING.md`](CONTRIBUTING.md) before opening a pull request.
 
 ### License
 
@@ -129,7 +129,7 @@ PDR 2.0 ayuda a planificar y seguir un proyecto como cronograma:
 
 ### Estado y limitaciones
 
-PDR 2.0 es un candidato a la versión 1.0. El proyecto sigue una hoja de ruta documentada: ver [`02-DOCS/wiki/roadmap.md`](02-DOCS/wiki/roadmap.md) y el alcance funcional en [`02-DOCS/wiki/alcance-funcional.md`](02-DOCS/wiki/alcance-funcional.md).
+PDR 2.0 es un candidato a la versión 1.0. El trabajo pendiente y las limitaciones conocidas se siguen en las [incidencias](https://github.com/Mauro42K/PDR2/issues).
 
 Todavía no incluye:
 
@@ -202,7 +202,7 @@ npm test            # pruebas unitarias e integración contra la base de pruebas
 
 ### Contribuir
 
-Las incidencias y las propuestas de cambio (pull requests) son bienvenidas. Antes de abrir una propuesta, ejecuta `npm run typecheck` y `npm test`. Las reglas de trabajo del proyecto están en [`02-DOCS/wiki/sdd/constitution.md`](02-DOCS/wiki/sdd/constitution.md) y en [`REVIEW.md`](REVIEW.md).
+Las incidencias y las propuestas de cambio (pull requests) son bienvenidas. Antes de abrir una propuesta, lee [`CONTRIBUTING.md`](CONTRIBUTING.md).
 
 ### Licencia
 
