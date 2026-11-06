@@ -132,7 +132,7 @@ export async function buildApp(options: AppOptions = {}): Promise<{ app: Fastify
       id: targetId,
       updatedAt: new Date().toISOString(),
       groups: (file.project.groups ?? []).map((group) => ({ ...group, id: groupIds.get(group.id)! })),
-      tasks: file.project.tasks.map((task) => ({ ...task, id: taskIds.get(task.id)! })),
+      tasks: file.project.tasks.map((task) => ({ ...task, id: taskIds.get(task.id)!, groupId: task.groupId ? groupIds.get(task.groupId)! : null })),
       dependencies: file.project.dependencies.map((dep) => ({
         ...dep,
         id: randomUUID(),
