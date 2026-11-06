@@ -52,7 +52,8 @@ describe.skipIf(!enabled)('copia y restauración de la base (CON-09)', () => {
     expect(antes.projects.startsWith('1 ')).toBe(true);
     expect(antes.dependencies.startsWith('1 ')).toBe(true);
     expect(antes.task_groups.startsWith('1 ')).toBe(true);
-  });
+    // Cada `docker exec` tarda; con el límite por defecto de 5 s la prueba expiraba bajo carga.
+  }, 60000);
 
   it('no guarda una copia dentro del repositorio', async () => {
     await expect(volcarBase(origen, join(process.cwd(), 'copia-no-permitida'))).rejects.toThrow(/dentro del repositorio/);
