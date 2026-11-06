@@ -33,7 +33,7 @@ async function uploadFile(page: Page, file: { name: string; json: unknown }) {
 
 test.setTimeout(90000);
 
-test('exports v2 JSON from the UI and imports it as a copy or replacement without losing groups, colors, notes or dependencies', async ({ page }) => {
+test('exports v3 JSON from the UI and imports it as a copy or replacement without losing groups, colors, notes or dependencies', async ({ page }) => {
   const name = `Ida y vuelta JSON QA ${crypto.randomUUID()}`;
   const created = await page.request.post('/api/projects', { data: { name } });
   const { id } = await created.json() as { id: string };
@@ -81,7 +81,8 @@ test('exports v2 JSON from the UI and imports it as a copy or replacement withou
     expect(snapshot(await fetchProject(page, copyId))).toEqual(original);
     await page.request.delete(`/api/projects/${copyId}`);
 
-    await page.request.put(`/api/projects/${id}/state`, { data: { ...(await fetchProject(page, id)), tasks: [] } });
+    expect((await page.request.put(`/api/projects/${id}/state`, { data: { ...(await fetchProject(page, id)), tasks: [], dependencies: [] } })).ok()).toBeTruthy();
+    expect((await fetchProject(page, id)).tasks).toEqual([]);
     await page.reload();
     await page.locator('.projects-button').click();
     await page.getByRole('navigation', { name: 'Proyectos' }).getByRole('button', { name: new RegExp(name) }).click();
@@ -90,7 +91,9 @@ test('exports v2 JSON from the UI and imports it as a copy or replacement withou
     page.once('dialog', (dialog) => void dialog.accept());
     const importResponse = page.waitForResponse((r) => r.url().includes('/api/projects/import') && r.request().method() === 'POST');
     await page.getByRole('button', { name: 'Confirmar reemplazo' }).click();
-    const body = await (await importResponse).json() as { tasks: Array<{ name: string; groupId: string | null }>; groups: Array<{ id: string }> };
+    expect((await importResponse).ok()).toBeTruthy();
+    await expect(page.getByRole('dialog', { name: 'Importar proyecto' })).toBeHidden();
+    expect(snapshot(await fetchProject(page, id))).toEqual(original);
     await expect(page.getByRole('button', { name: 'Deshacer' })).toBeDisabled();
     await page.reload();
     await page.locator('.projects-button').click();
