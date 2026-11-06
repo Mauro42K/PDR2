@@ -136,12 +136,17 @@ describe('Fastify API', () => {
       payload: { name: 'Bad', startDate: '2026-02-30', endDate: '2026-03-01' },
     });
     expect(invalid.statusCode).toBe(400);
+    expect(invalid.json().code).toBe('invalid_task_dates');
     const conflict = await app.inject({
       method: 'PATCH',
       url: `/api/projects/${project.id}/tasks/${ids.a}`,
       payload: { name: 'Design', startDate: '2026-01-09', endDate: '2026-01-11' },
     });
     expect(conflict.statusCode).toBe(409);
+    expect(conflict.json()).toMatchObject({
+      error: 'dependency_conflict',
+      code: 'dependency_conflict',
+    });
     expect((await repository.getProject(project.id))?.tasks[0].endDate).toBe('2026-01-10');
     const accepted = await app.inject({
       method: 'PATCH',
@@ -160,6 +165,7 @@ describe('Fastify API', () => {
       payload: { format: 'wrong', version: 1, mode: 'copy', project },
     });
     expect(invalid.statusCode).toBe(400);
+    expect(invalid.json().code).toBe('unsupported_file');
     expect(repository.projects).toEqual(before);
     const file = {
       format: 'pdr2-project',
@@ -171,9 +177,29 @@ describe('Fastify API', () => {
     const copied = await app.inject({ method: 'POST', url: '/api/projects/import', payload: file });
     expect(copied.statusCode).toBe(201);
     const copy = copied.json<Project>();
+    expect(copy.name).toBe(`${project.name} (copia)`);
     expect(copy.id).not.toBe(project.id);
     expect(copy.tasks[0].id).not.toBe(project.tasks[0].id);
     expect(copy.dependencies[0].predecessorId).toBe(copy.tasks[0].id);
+  });
+  it('names new English copies in English while leaving the source unchanged', async () => {
+    const { app, repository, project } = await setup();
+    const originalName = project.name;
+    const result = await app.inject({
+      method: 'POST',
+      url: '/api/projects/import',
+      payload: {
+        format: 'pdr2-project',
+        version: 1,
+        exportedAt: new Date().toISOString(),
+        mode: 'copy',
+        locale: 'en',
+        project,
+      },
+    });
+    expect(result.statusCode).toBe(201);
+    expect(result.json().name).toBe(`${originalName} (copy)`);
+    expect((await repository.getProject(project.id))?.name).toBe(originalName);
   });
   it('replaces another project with fresh task and dependency IDs while preserving the source', async () => {
     const { app, repository, project: source } = await setup();
@@ -270,7 +296,10 @@ describe('Fastify API', () => {
       payload: looped,
     });
     expect(result.statusCode).toBe(400);
-    expect(result.json().message).toBe('La dependencia crearía un ciclo.');
+    expect(result.json()).toMatchObject({
+      code: 'dependency_cycle',
+      message: 'La dependencia crearía un ciclo.',
+    });
     expect((await repository.getProject(project.id))?.dependencies).toHaveLength(1);
   });
 });
@@ -292,5 +321,43 @@ describe('identidad del servidor de prueba (D-P1)', () => {
     const { app } = await setup();
     const respuesta = await app.inject({ method: 'GET', url: '/api/health' });
     expect(respuesta.json()).toEqual({ status: 'ok', runId: 'token-de-prueba-123' });
+  });
+});
+
+describe('stable validation error codes', () => {
+  it('adds a stable code without removing the legacy message for invalid names', async () => {
+    const { app } = await setup();
+    const result = await app.inject({
+      method: 'POST',
+      url: '/api/projects',
+      payload: { name: '' },
+    });
+    expect(result.statusCode).toBe(400);
+    expect(result.json()).toMatchObject({
+      code: 'invalid_project_name',
+      message: 'El nombre del proyecto debe tener entre 1 y 160 caracteres.',
+    });
+  });
+  it('returns the progress-specific code for an out-of-range progress value', async () => {
+    const { app, project } = await setup();
+    const result = await app.inject({
+      method: 'POST',
+      url: `/api/projects/${project.id}/tasks`,
+      payload: { name: 'Task', startDate: '2026-01-01', endDate: '2026-01-02', progress: 101 },
+    });
+    expect(result.statusCode).toBe(400);
+    expect(result.json()).toMatchObject({
+      code: 'invalid_task_progress',
+      message: 'El progreso de una tarea debe ser un número entero entre 0 y 100.',
+    });
+  });
+  it('identifies missing resources without changing the HTTP status', async () => {
+    const { app } = await setup();
+    const result = await app.inject({ method: 'GET', url: '/api/projects/does-not-exist' });
+    expect(result.statusCode).toBe(404);
+    expect(result.json()).toMatchObject({
+      code: 'not_found',
+      message: 'No se encontró el recurso.',
+    });
   });
 });

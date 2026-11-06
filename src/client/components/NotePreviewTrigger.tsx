@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { componentMessages } from '../component-messages.js';
 import type { Locale } from '../../shared/model.js';
 
 type Props = {
@@ -13,14 +14,8 @@ type Props = {
 /** Shared note affordance: hover/focus previews the text; activation opens the editor. */
 export function NotePreviewTrigger({ kind, itemId, name, note, locale, onOpen }: Props) {
   const [placement, setPlacement] = useState<'above' | 'below'>('below');
-  const label =
-    kind === 'task'
-      ? locale === 'es'
-        ? `Nota de tarea: ${name}`
-        : `Task note: ${name}`
-      : locale === 'es'
-        ? `Nota del grupo: ${name}`
-        : `Group note: ${name}`;
+  const copy = componentMessages(locale);
+  const label = kind === 'task' ? copy.taskNote(name) : copy.groupNote(name);
   const id = `${kind}-note-preview-${itemId}`;
   const placePreview = (trigger: HTMLButtonElement) => {
     const bounds = trigger.getBoundingClientRect();

@@ -68,7 +68,8 @@ test('requires a two-step BORRAR confirmation before permanently deleting a proj
     await confirmation.fill('BORRAR');
     await expect(finalDelete).toBeEnabled();
     await finalDelete.click();
-    await expect(dialog.getByRole('alert')).toHaveText('Error de prueba al eliminar.');
+    await expect(dialog.getByRole('alert')).toHaveText('Ocurrió un error');
+    await expect(dialog.getByText('Error de prueba al eliminar.')).toHaveCount(0);
     await expect(dialog).toBeVisible();
     expect((await page.request.get(`/api/projects/${project.id}`)).status()).toBe(200);
     await expect(finalDelete).toBeEnabled();
@@ -133,7 +134,10 @@ test('shows a recoverable workspace error if refreshing projects fails after del
     await dialog.getByRole('button', { name: 'Eliminar proyecto' }).click();
     await expect(dialog).toBeHidden();
     await expect(page.getByRole('heading', { name, exact: true })).toBeHidden();
-    await expect(page.locator('.startup-error code')).toHaveText('La lista no está disponible.');
+    await expect(page.locator('.startup-error code')).toHaveText(
+      'Sin conexión con la aplicación local',
+    );
+    await expect(page.getByText('La lista no está disponible.')).toHaveCount(0);
     expect((await page.request.get(`/api/projects/${project.id}`)).status()).toBe(404);
     await page.getByRole('button', { name: 'Reintentar' }).click();
     await expect(

@@ -302,3 +302,17 @@ describe('F3-02 planning rules', () => {
     ).toThrow(/misma fecha/);
   });
 });
+
+describe('validation error codes', () => {
+  it('assigns a stable code to invalid project files while retaining the legacy message', () => {
+    try {
+      validateProjectFile(null);
+      expect.fail('expected validation to reject the file');
+    } catch (error) {
+      expect(error).toMatchObject({
+        code: 'invalid_file_project',
+        message: 'El archivo no contiene un proyecto válido.',
+      });
+    }
+  });
+});

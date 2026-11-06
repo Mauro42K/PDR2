@@ -14,15 +14,26 @@ import {
   type ProjectFile,
   type TaskStatus,
 } from '../shared/model.js';
+import {
+  apiErrorMessages,
+  DomainValidationError,
+  type ApiErrorCode,
+} from '../shared/api-errors.js';
 import { databaseUrl } from './config.js';
 import { PostgresRepository, type Repository } from './repository.js';
 
 type AppOptions = { repository?: Repository; webRoot?: string; logger?: boolean };
-const invalid = (message: string) => ({ statusCode: 400, error: 'Bad Request', message });
+const invalid = (code: ApiErrorCode) => ({
+  statusCode: 400,
+  error: 'Bad Request',
+  code,
+  message: apiErrorMessages[code][0],
+});
 const notFound = () => ({
   statusCode: 404,
   error: 'Not Found',
-  message: 'No se encontró el recurso.',
+  code: 'not_found',
+  message: apiErrorMessages.not_found[0],
 });
 const validName = (value: unknown): value is string =>
   typeof value === 'string' && !!value.trim() && value.trim().length <= 160;
@@ -34,18 +45,16 @@ type PlanningFields = {
   endDate: string;
 };
 /** Returns the message for the first invalid planning field, or null. */
-function planningError(fields: PlanningFields): string | null {
-  if (!(TASK_STATUSES as readonly unknown[]).includes(fields.status))
-    return 'El estado de una tarea no es válido.';
+function planningError(fields: PlanningFields): ApiErrorCode | null {
+  if (!(TASK_STATUSES as readonly unknown[]).includes(fields.status)) return 'invalid_task_status';
   if (
     !Number.isInteger(fields.progress) ||
     (fields.progress as number) < 0 ||
     (fields.progress as number) > 100
   )
-    return 'El progreso de una tarea debe ser un número entero entre 0 y 100.';
-  if (typeof fields.isMilestone !== 'boolean') return 'Faltan datos de la tarea en el archivo.';
-  if (fields.isMilestone && fields.startDate !== fields.endDate)
-    return 'Un hito debe tener la misma fecha de inicio y fin.';
+    return 'invalid_task_progress';
+  if (typeof fields.isMilestone !== 'boolean') return 'missing_task_fields';
+  if (fields.isMilestone && fields.startDate !== fields.endDate) return 'invalid_milestone_dates';
   return null;
 }
 
@@ -73,9 +82,7 @@ export async function buildApp(
   app.get('/api/projects', async () => repo.listProjects());
   app.post<{ Body: { name?: unknown } }>('/api/projects', async (request, reply) => {
     if (!validName(request.body?.name))
-      return reply
-        .code(400)
-        .send(invalid('El nombre del proyecto debe tener entre 1 y 160 caracteres.'));
+      return reply.code(400).send(invalid('invalid_project_name'));
     return reply.code(201).send(await repo.createProject(request.body.name.trim()));
   });
   app.get<{ Params: { id: string } }>('/api/projects/:id', async (request, reply) => {
@@ -95,19 +102,17 @@ export async function buildApp(
           !Array.isArray(p.tasks) ||
           !Array.isArray(p.dependencies)
         )
-          throw new Error('El estado del proyecto no es válido.');
+          throw new DomainValidationError('invalid_project_state');
         if (hasDependencyCycle(p.tasks, p.dependencies))
-          throw new Error('La dependencia crearía un ciclo.');
+          throw new DomainValidationError('dependency_cycle');
         normalized = validateProjectState(p);
         if (normalized.tasks.some((task) => task.note && task.note.length > 10000))
-          throw new Error('Las notas no pueden superar 10 000 caracteres.');
+          throw new DomainValidationError('notes_too_long');
       } catch (error) {
         return reply
           .code(400)
           .send(
-            invalid(
-              error instanceof Error ? error.message : 'El estado del proyecto no es válido.',
-            ),
+            invalid(error instanceof DomainValidationError ? error.code : 'invalid_project_state'),
           );
       }
       return (
@@ -120,9 +125,7 @@ export async function buildApp(
     '/api/projects/:id',
     async (request, reply) => {
       if (!validName(request.body?.name))
-        return reply
-          .code(400)
-          .send(invalid('El nombre del proyecto debe tener entre 1 y 160 caracteres.'));
+        return reply.code(400).send(invalid('invalid_project_name'));
       const project = await repo.renameProject(request.params.id, request.body.name.trim());
       return project ? project : reply.code(404).send(notFound());
     },
@@ -152,7 +155,7 @@ export async function buildApp(
       isMilestone = false,
     } = request.body ?? {};
     if (!validName(name) || !isISODate(startDate) || !isISODate(endDate) || endDate < startDate)
-      return reply.code(400).send(invalid('Revisa el nombre y las fechas de la tarea.'));
+      return reply.code(400).send(invalid('invalid_task_dates'));
     const planning = planningError({ status, progress, isMilestone, startDate, endDate });
     if (planning) return reply.code(400).send(invalid(planning));
     if (!(await repo.getProject(request.params.id))) return reply.code(404).send(notFound());
@@ -181,7 +184,7 @@ export async function buildApp(
   }>('/api/projects/:id/tasks/:taskId', async (request, reply) => {
     const { name, startDate, endDate, status, progress, isMilestone } = request.body ?? {};
     if (!validName(name) || !isISODate(startDate) || !isISODate(endDate) || endDate < startDate)
-      return reply.code(400).send(invalid('Revisa el nombre y las fechas de la tarea.'));
+      return reply.code(400).send(invalid('invalid_task_dates'));
     const existing = await repo.getProject(request.params.id);
     if (!existing) return reply.code(404).send(notFound());
     const current = existing.tasks.find((task) => task.id === request.params.taskId);
@@ -198,7 +201,8 @@ export async function buildApp(
     if (conflicts.length && request.query.acceptConflict !== 'true')
       return reply.code(409).send({
         error: 'dependency_conflict',
-        message: 'El cambio entra en conflicto con una dependencia.',
+        code: 'dependency_conflict',
+        message: apiErrorMessages.dependency_conflict[0],
         dependencies: conflicts,
       });
     const project = await repo.updateTask(request.params.id, request.params.taskId, {
@@ -226,28 +230,26 @@ export async function buildApp(
         typeof successorId !== 'string' ||
         predecessorId === successorId
       )
-        return reply
-          .code(400)
-          .send(invalid('Selecciona dos tareas distintas para crear una dependencia.'));
+        return reply.code(400).send(invalid('invalid_dependency_selection'));
       const current = await repo.getProject(request.params.id);
       if (!current) return reply.code(404).send(notFound());
       if (
         !current.tasks.some((task) => task.id === predecessorId) ||
         !current.tasks.some((task) => task.id === successorId)
       )
-        return reply.code(400).send(invalid('Ambas tareas deben pertenecer al proyecto abierto.'));
+        return reply.code(400).send(invalid('tasks_not_in_project'));
       if (
         current.dependencies.some(
           (dep) => dep.predecessorId === predecessorId && dep.successorId === successorId,
         )
       )
-        return reply.code(409).send(invalid('Esta dependencia ya existe.'));
+        return reply.code(409).send(invalid('duplicate_dependency'));
       if (wouldCycle(current, predecessorId, successorId))
-        return reply.code(400).send(invalid('La dependencia crearía un ciclo.'));
+        return reply.code(400).send(invalid('dependency_cycle'));
       const project = await repo.addDependency(request.params.id, predecessorId, successorId);
       return project
         ? reply.code(201).send(project)
-        : reply.code(400).send(invalid('Una de las tareas no pertenece al proyecto.'));
+        : reply.code(400).send(invalid('task_not_in_project'));
     },
   );
   app.delete<{ Params: { id: string; dependencyId: string } }>(
@@ -276,6 +278,7 @@ export async function buildApp(
   app.post<{
     Body: {
       mode?: unknown;
+      locale?: unknown;
       targetProjectId?: unknown;
       format?: unknown;
       version?: unknown;
@@ -289,10 +292,10 @@ export async function buildApp(
     } catch (error) {
       return reply
         .code(400)
-        .send(invalid(error instanceof Error ? error.message : 'El archivo no es válido.'));
+        .send(invalid(error instanceof DomainValidationError ? error.code : 'invalid_file'));
     }
     if (request.body.mode !== 'copy' && request.body.mode !== 'replace')
-      return reply.code(400).send(invalid('Indica si deseas importar como copia o reemplazar.'));
+      return reply.code(400).send(invalid('invalid_import_mode'));
     if (request.body.mode === 'copy') {
       const taskIds = new Map(file.project.tasks.map((task) => [task.id, randomUUID()]));
       const groupIds = new Map(
@@ -301,7 +304,7 @@ export async function buildApp(
       const project: Project = {
         ...file.project,
         id: randomUUID(),
-        name: `${file.project.name} (copia)`,
+        name: `${file.project.name} (${request.body.locale === 'en' ? 'copy' : 'copia'})`,
         updatedAt: new Date().toISOString(),
         groups: (file.project.groups ?? []).map((group) => ({
           ...group,
@@ -324,8 +327,7 @@ export async function buildApp(
     }
     const targetId =
       typeof request.body.targetProjectId === 'string' ? request.body.targetProjectId : '';
-    if (!targetId)
-      return reply.code(400).send(invalid('Selecciona el proyecto que se reemplazará.'));
+    if (!targetId) return reply.code(400).send(invalid('missing_import_target'));
     const existing = await repo.getProject(targetId);
     if (!existing) return reply.code(404).send(notFound());
     const taskIds = new Map(file.project.tasks.map((task) => [task.id, randomUUID()]));

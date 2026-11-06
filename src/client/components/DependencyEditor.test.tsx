@@ -162,3 +162,32 @@ describe('DependencyEditor', () => {
     expect(screen.getByLabelText('Predecesora para Entrega')).toHaveValue('');
   });
 });
+
+describe('localized dependency labels', () => {
+  it('updates labels and task references when the language changes', () => {
+    const props = {
+      task: tasks[2],
+      tasks,
+      groups: [],
+      dependencies: [{ id: 'd', predecessorId: 'a', successorId: 'c' }],
+      saving: false,
+      onAdd: vi.fn(),
+      onRemove: vi.fn(),
+    };
+    const { rerender } = render(<DependencyEditor {...props} locale="es" />);
+    fireEvent.click(screen.getByRole('button', { name: /Predecesoras/ }));
+    expect(screen.getByLabelText('Predecesora para Entrega')).toBeInTheDocument();
+    expect(
+      screen.getByRole('button', {
+        name: 'Quitar predecesora: #1 · Diseño · Sin grupo → #3 · Entrega · Sin grupo',
+      }),
+    ).toBeInTheDocument();
+    rerender(<DependencyEditor {...props} locale="en" />);
+    expect(screen.getByLabelText('Predecessor for Entrega')).toBeInTheDocument();
+    expect(
+      screen.getByRole('button', {
+        name: 'Remove predecessor: #1 · Diseño · Ungrouped → #3 · Entrega · Ungrouped',
+      }),
+    ).toBeInTheDocument();
+  });
+});

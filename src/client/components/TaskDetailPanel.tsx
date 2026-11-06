@@ -11,6 +11,7 @@ import { durationDays } from '../../shared/model.js';
 import { ProgressInput } from './ProgressInput.js';
 import { DateControl } from './DateControl.js';
 import { messages } from '../i18n.js';
+import { componentMessages } from '../component-messages.js';
 import { PredecessorsCell } from './PredecessorsCell.js';
 
 type Props = {
@@ -57,7 +58,7 @@ export function TaskDetailPanel({
   // Escape restores the saved name and must not trigger the save that the blur would otherwise start.
   const cancelling = useRef(false);
   useEffect(() => setName(task.name), [task.id, task.name]);
-  const es = locale === 'es';
+  const copy = componentMessages(locale);
   const commitName = () => {
     const next = name.trim();
     if (!next || next === task.name) {
@@ -67,24 +68,18 @@ export function TaskDetailPanel({
     onRename(next);
   };
   const days = task.isMilestone ? 0 : Math.round(durationDays(task));
-  const noteLabel = task.note?.trim()
-    ? es
-      ? 'Ver o editar nota'
-      : 'View or edit note'
-    : es
-      ? 'Añadir nota'
-      : 'Add note';
+  const noteLabel = task.note?.trim() ? copy.detailNoteEdit : copy.detailNoteAdd;
 
   return (
     <section className="task-detail" aria-labelledby="task-detail-heading">
       <div className="task-detail-head">
         <span className="task-detail-index">{String(number).padStart(2, '0')}</span>
         <h2 id="task-detail-heading" className="sr-only">
-          {es ? 'Detalle de la tarea' : 'Task details'}
+          {copy.detailTitle}
         </h2>
         <input
           className="task-detail-name"
-          aria-label={es ? 'Nombre de la tarea' : 'Task name'}
+          aria-label={copy.detailName}
           value={name}
           onChange={(event) => setName(event.target.value)}
           onBlur={() => {
@@ -106,8 +101,8 @@ export function TaskDetailPanel({
         <button
           type="button"
           className="modal-close"
-          aria-label={es ? 'Cerrar detalle' : 'Close details'}
-          data-tip={es ? 'Cerrar detalle' : 'Close details'}
+          aria-label={copy.detailClose}
+          data-tip={copy.detailClose}
           onClick={onClose}
         >
           ×
@@ -115,10 +110,10 @@ export function TaskDetailPanel({
       </div>
       <div className="task-detail-grid">
         <div className="task-detail-field">
-          <span>{es ? 'Inicio' : 'Start'}</span>
+          <span>{copy.start}</span>
           <DateControl
             className="task-detail-date"
-            ariaLabel={`${es ? 'Inicio' : 'Start'} ${task.name}`}
+            ariaLabel={`${copy.start} ${task.name}`}
             locale={locale}
             value={task.startDate}
             max={task.isMilestone ? undefined : task.endDate}
@@ -128,13 +123,13 @@ export function TaskDetailPanel({
           />
         </div>
         <div className="task-detail-field">
-          <span>{es ? 'Fin' : 'End'}</span>
+          <span>{copy.end}</span>
           {task.isMilestone ? (
             <output className="task-detail-date">{task.endDate}</output>
           ) : (
             <DateControl
               className="task-detail-date"
-              ariaLabel={`${es ? 'Fin' : 'End'} ${task.name}`}
+              ariaLabel={`${copy.end} ${task.name}`}
               locale={locale}
               value={task.endDate}
               min={task.startDate}
@@ -145,18 +140,18 @@ export function TaskDetailPanel({
           )}
         </div>
         <div className="task-detail-field">
-          <span>{es ? 'Duración' : 'Duration'}</span>
+          <span>{copy.duration}</span>
           <output className="task-detail-duration">
-            {days} {es ? (days === 1 ? 'día' : 'días') : days === 1 ? 'day' : 'days'}
+            {days} {days === 1 ? copy.day : copy.days}
           </output>
         </div>
         <label className="task-detail-field">
-          <span>{es ? 'Grupo' : 'Group'}</span>
+          <span>{copy.group}</span>
           <select
             value={task.groupId ?? ''}
             onChange={(event) => onGroup(event.target.value || null)}
           >
-            <option value="">{es ? 'Sin grupo' : 'Ungrouped'}</option>
+            <option value="">{copy.ungrouped}</option>
             {groups.map((group) => (
               <option key={group.id} value={group.id}>
                 {group.name}
@@ -165,7 +160,7 @@ export function TaskDetailPanel({
           </select>
         </label>
         <label className="task-detail-field">
-          <span>{es ? 'Estado' : 'Status'}</span>
+          <span>{copy.status}</span>
           <select
             value={task.status}
             disabled={saving}
@@ -179,7 +174,7 @@ export function TaskDetailPanel({
           </select>
         </label>
         <label className="task-detail-field">
-          <span>{es ? 'Avance' : 'Progress'}</span>
+          <span>{copy.progress}</span>
           <ProgressInput
             progress={task.progress}
             saving={saving}
@@ -199,10 +194,10 @@ export function TaskDetailPanel({
               )
             }
           />
-          <span>{es ? 'Hito' : 'Milestone'}</span>
+          <span>{copy.milestone}</span>
         </label>
         <div className="task-detail-field">
-          <span>{es ? 'Predecesoras' : 'Predecessors'}</span>
+          <span>{copy.predecessors}</span>
           <PredecessorsCell
             task={task}
             tasks={tasks}
@@ -232,7 +227,7 @@ export function TaskDetailPanel({
           className="danger-text-button"
           onClick={(event) => onDelete(event.currentTarget)}
         >
-          {es ? 'Eliminar tarea' : 'Delete task'}
+          {copy.deleteTask}
         </button>
       </div>
     </section>

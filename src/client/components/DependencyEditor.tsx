@@ -7,6 +7,7 @@ import {
   type KeyboardEvent,
 } from 'react';
 import type { Dependency, Locale, Task, TaskGroup } from '../../shared/model.js';
+import { componentMessages } from '../component-messages.js';
 import { taskReference } from '../taskReference.js';
 import { positionRowActions } from '../positionRowActions.js';
 
@@ -53,6 +54,7 @@ export function DependencyEditor({
     const menu = toggleRef.current?.closest('details.row-actions');
     if (menu instanceof HTMLDetailsElement) positionRowActions(menu);
   }, [expanded, candidate, dependencies.length]);
+  const copy = componentMessages(locale);
   const incoming = dependencies.filter((dependency) => dependency.successorId === task.id);
   const chosen = tasks.find((item) => item.id === candidate);
   const overlap = !!chosen && chosen.endDate >= task.startDate;
@@ -80,13 +82,12 @@ export function DependencyEditor({
           setExpanded((value) => !value);
         }}
       >
-        {locale === 'es' ? 'Predecesoras' : 'Predecessors'}{' '}
-        <span className="dependency-count">{incoming.length}</span>
+        {copy.predecessors} <span className="dependency-count">{incoming.length}</span>
       </button>
       {expanded && (
         <div className="dependency-editor-body">
           <p className="dependency-direction">
-            {locale === 'es' ? 'Terminan antes de' : 'Finish before'} <strong>{task.name}</strong>
+            {copy.finishesBefore} <strong>{task.name}</strong>
           </p>
           {incoming.length ? (
             <ul className="dependency-editor-list">
@@ -99,31 +100,27 @@ export function DependencyEditor({
                     <button
                       type="button"
                       disabled={saving}
-                      aria-label={`${locale === 'es' ? 'Quitar predecesora' : 'Remove predecessor'}: ${sourceLabel} → ${taskReference(task, groups, locale)}`}
+                      aria-label={`${copy.removePredecessor}: ${sourceLabel} → ${taskReference(task, groups, locale)}`}
                       onClick={() => void onRemove(dependency.id)}
                     >
-                      {locale === 'es' ? 'Quitar' : 'Remove'}
+                      {copy.remove}
                     </button>
                   </li>
                 );
               })}
             </ul>
           ) : (
-            <p className="dependency-editor-empty">
-              {locale === 'es' ? 'Sin predecesoras.' : 'No predecessors.'}
-            </p>
+            <p className="dependency-editor-empty">{copy.noPredecessors}</p>
           )}
           <form onSubmit={(event) => void submit(event)}>
             <label>
-              {locale === 'es' ? 'Añadir predecesora' : 'Add predecessor'}
+              {copy.addPredecessor}
               <select
-                aria-label={`${locale === 'es' ? 'Predecesora para' : 'Predecessor for'} ${task.name}`}
+                aria-label={copy.predecessorFor(task.name)}
                 value={candidate}
                 onChange={(event) => setCandidate(event.target.value)}
               >
-                <option value="">
-                  {locale === 'es' ? 'Selecciona una tarea' : 'Select a task'}
-                </option>
+                <option value="">{copy.selectTask}</option>
                 {tasks
                   .filter((item) => item.id !== task.id)
                   .map((item) => (
@@ -134,9 +131,7 @@ export function DependencyEditor({
                     >
                       {taskReference(item, groups, locale)}
                       {incoming.some((dependency) => dependency.predecessorId === item.id)
-                        ? locale === 'es'
-                          ? ' (ya añadida)'
-                          : ' (already added)'
+                        ? copy.alreadyAdded
                         : ''}
                     </option>
                   ))}
@@ -144,9 +139,7 @@ export function DependencyEditor({
             </label>
             {overlap && (
               <p className="dependency-warning" role="status">
-                {locale === 'es'
-                  ? 'Las fechas se superponen; la sucesora comienza antes de que termine la predecesora.'
-                  : 'Dates overlap; the successor starts before the predecessor finishes.'}
+                {copy.overlapWarning}
               </p>
             )}
             <div className="dependency-editor-actions">
@@ -159,11 +152,11 @@ export function DependencyEditor({
                   incoming.some((dependency) => dependency.predecessorId === candidate)
                 }
               >
-                {locale === 'es' ? 'Conectar' : 'Connect'}
+                {copy.connect}
               </button>
               {candidate && (
                 <button type="button" onClick={() => setCandidate('')}>
-                  {locale === 'es' ? 'Cancelar' : 'Cancel'}
+                  {copy.cancel}
                 </button>
               )}
             </div>

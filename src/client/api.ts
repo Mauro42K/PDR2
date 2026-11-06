@@ -1,4 +1,4 @@
-import type { Project, ProjectFile, ProjectSummary, Task } from '../shared/model.js';
+import type { Locale, Project, ProjectFile, ProjectSummary, Task } from '../shared/model.js';
 
 export class ApiError extends Error {
   constructor(
@@ -58,10 +58,20 @@ export const api = {
     ),
   removeDependency: (projectId: string, dependencyId: string) =>
     request<Project>(`/api/projects/${projectId}/dependencies/${dependencyId}`, json('DELETE')),
-  importProject: (file: ProjectFile, mode: 'copy' | 'replace', projectId?: string) =>
+  importProject: (
+    file: ProjectFile,
+    mode: 'copy' | 'replace',
+    projectId?: string,
+    locale?: Locale,
+  ) =>
     request<Project>(
       '/api/projects/import',
-      json('POST', { ...file, mode, targetProjectId: mode === 'replace' ? projectId : undefined }),
+      json('POST', {
+        ...file,
+        mode,
+        locale,
+        targetProjectId: mode === 'replace' ? projectId : undefined,
+      }),
     ),
   saveProjectState: (project: Project) =>
     request<Project>(`/api/projects/${project.id}/state`, json('PUT', project)),

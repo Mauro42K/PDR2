@@ -2,6 +2,7 @@ import { useLayoutEffect, useRef, useState } from 'react';
 import type React from 'react';
 import { createPortal } from 'react-dom';
 import type { Locale } from '../../shared/model.js';
+import { componentMessages } from '../component-messages.js';
 
 type DateControlProps = {
   value: string;
@@ -51,6 +52,7 @@ export function DateControl({
     bounded(value || isoDate(new Date()), min, max),
   );
   const [position, setPosition] = useState({ left: 0, top: 0 });
+  const copy = componentMessages(locale);
   const localeTag = locale === 'es' ? 'es-ES' : 'en-US';
   const selectedDate = dateFrom(value);
   const display = value
@@ -233,19 +235,11 @@ export function DateControl({
             style={{ left: position.left, top: position.top }}
           >
             <div className="date-picker-heading">
-              <button
-                type="button"
-                aria-label={locale === 'es' ? 'Mes anterior' : 'Previous month'}
-                onClick={() => changeMonth(-1)}
-              >
+              <button type="button" aria-label={copy.previousMonth} onClick={() => changeMonth(-1)}>
                 <span aria-hidden="true">‹</span>
               </button>
               <strong>{monthLabel}</strong>
-              <button
-                type="button"
-                aria-label={locale === 'es' ? 'Mes siguiente' : 'Next month'}
-                onClick={() => changeMonth(1)}
-              >
+              <button type="button" aria-label={copy.nextMonth} onClick={() => changeMonth(1)}>
                 <span aria-hidden="true">›</span>
               </button>
             </div>

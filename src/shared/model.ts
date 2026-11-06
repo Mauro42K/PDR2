@@ -1,3 +1,5 @@
+import { DomainValidationError } from './api-errors.js';
+
 export type Locale = 'es' | 'en';
 export const GROUP_COLORS = ['blue', 'teal', 'green', 'amber', 'violet', 'rose'] as const;
 export type GroupColor = (typeof GROUP_COLORS)[number];
@@ -214,7 +216,7 @@ function validateTask(
     (task.position !== undefined &&
       (!Number.isInteger(task.position) || task.position < 0 || task.position > 2147483647))
   )
-    throw new Error('El archivo contiene una tarea inválida.');
+    throw new DomainValidationError('invalid_file_task');
   if (
     version === 3 &&
     (task.number === undefined ||
@@ -223,26 +225,26 @@ function validateTask(
       task.isMilestone === undefined ||
       task.position === undefined)
   )
-    throw new Error('Faltan datos de la tarea en el archivo.');
+    throw new DomainValidationError('missing_task_fields');
   if (task.status !== undefined && !(TASK_STATUSES as readonly unknown[]).includes(task.status))
-    throw new Error('El estado de una tarea no es válido.');
+    throw new DomainValidationError('invalid_task_status');
   if (
     task.progress !== undefined &&
     (!Number.isInteger(task.progress) || task.progress < 0 || task.progress > 100)
   )
-    throw new Error('El progreso de una tarea debe ser un número entero entre 0 y 100.');
+    throw new DomainValidationError('invalid_task_progress');
   if (task.isMilestone !== undefined && typeof task.isMilestone !== 'boolean')
-    throw new Error('Faltan datos de la tarea en el archivo.');
+    throw new DomainValidationError('missing_task_fields');
   const isMilestone = task.isMilestone ?? false;
   if (isMilestone && task.startDate !== task.endDate)
-    throw new Error('Un hito debe tener la misma fecha de inicio y fin.');
+    throw new DomainValidationError('invalid_milestone_dates');
   const numberUnassigned = allowUnassignedNumber && task.number === 0;
   if (
     version === 3 &&
     !numberUnassigned &&
     (!Number.isInteger(task.number) || (task.number as number) < 1)
   )
-    throw new Error('El número de tarea debe ser un entero mayor que cero.');
+    throw new DomainValidationError('invalid_task_number');
   const status = (task.status ?? 'pending') as TaskStatus;
   return {
     id: task.id,
@@ -273,8 +275,8 @@ function validateProjectBody(
     !Array.isArray(project.dependencies) ||
     (project.groups !== undefined && !Array.isArray(project.groups))
   )
-    throw new Error('El proyecto tiene campos incompletos.');
-  if (!UUID.test(project.id)) throw new Error('El identificador del proyecto no es válido.');
+    throw new DomainValidationError('incomplete_project');
+  if (!UUID.test(project.id)) throw new DomainValidationError('invalid_project_id');
   const ids = new Set<string>();
   const tasks = project.tasks.map((task, index) => {
     const normalized = validateTask(
@@ -290,7 +292,7 @@ function validateProjectBody(
   const numbers = new Set<number>();
   for (const task of tasks) {
     if (task.number === 0) continue;
-    if (numbers.has(task.number)) throw new Error('El archivo repite el número de una tarea.');
+    if (numbers.has(task.number)) throw new DomainValidationError('duplicate_task_number');
     numbers.add(task.number);
   }
   const groups = Array.isArray(project.groups) ? project.groups : [];
@@ -308,24 +310,23 @@ function validateProjectBody(
       group.position < 0 ||
       group.position > 2147483647
     )
-      throw new Error('El archivo contiene un grupo inválido.');
+      throw new DomainValidationError('invalid_group');
     if (group.note != null && (typeof group.note !== 'string' || group.note.length > 10000))
-      throw new Error('La nota de un grupo no es válida.');
+      throw new DomainValidationError('invalid_group_note');
     if (group.color != null && !(GROUP_COLORS as readonly unknown[]).includes(group.color))
-      throw new Error('El color de un grupo no es válido.');
+      throw new DomainValidationError('invalid_group_color');
     groupIds.add(group.id);
   }
   for (const task of tasks) {
     if (task.groupId != null && !groupIds.has(task.groupId))
-      throw new Error('La tarea hace referencia a un grupo inexistente.');
+      throw new DomainValidationError('missing_task_group');
     if (task.note != null && (typeof task.note !== 'string' || task.note.length > 10000))
-      throw new Error('La nota de una tarea no es válida.');
+      throw new DomainValidationError('invalid_task_note');
   }
   const dependencyPairs = new Set<string>();
   const dependencyIds = new Set<string>();
   for (const dep of project.dependencies) {
-    if (!dep || typeof dep !== 'object')
-      throw new Error('El archivo contiene una dependencia inválida.');
+    if (!dep || typeof dep !== 'object') throw new DomainValidationError('invalid_file_dependency');
     const pair = `${dep.predecessorId}:${dep.successorId}`;
     if (
       typeof dep.id !== 'string' ||
@@ -336,12 +337,12 @@ function validateProjectBody(
       dep.predecessorId === dep.successorId ||
       dependencyPairs.has(pair)
     )
-      throw new Error('El archivo contiene una dependencia inválida.');
+      throw new DomainValidationError('invalid_file_dependency');
     dependencyIds.add(dep.id);
     dependencyPairs.add(pair);
   }
   if (hasDependencyCycle(tasks, project.dependencies))
-    throw new Error('El archivo contiene un ciclo de dependencias.');
+    throw new DomainValidationError('file_dependency_cycle');
   return {
     ...project,
     groups: groups.map((group) => ({
@@ -355,8 +356,7 @@ function validateProjectBody(
 
 /** Validates an import file (versions 1, 2 and 3). Always returns version 3. */
 export function validateProjectFile(input: unknown): ProjectFile {
-  if (!input || typeof input !== 'object')
-    throw new Error('El archivo no contiene un proyecto válido.');
+  if (!input || typeof input !== 'object') throw new DomainValidationError('invalid_file_project');
   const file = input as Partial<ProjectFile>;
   const project = file.project;
   if (
@@ -365,7 +365,7 @@ export function validateProjectFile(input: unknown): ProjectFile {
     !project ||
     typeof project !== 'object'
   )
-    throw new Error('Formato o versión de archivo no compatibles.');
+    throw new DomainValidationError('unsupported_file');
   return {
     ...file,
     version: 3,
@@ -375,6 +375,6 @@ export function validateProjectFile(input: unknown): ProjectFile {
 
 /** Validates a state save from the client. New tasks may come with number 0; the server assigns their numbers. */
 export function validateProjectState(input: unknown): Project {
-  if (!input || typeof input !== 'object') throw new Error('El estado del proyecto no es válido.');
+  if (!input || typeof input !== 'object') throw new DomainValidationError('invalid_project_state');
   return validateProjectBody(input as Project, 3, true);
 }

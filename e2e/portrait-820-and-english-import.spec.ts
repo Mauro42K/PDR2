@@ -96,3 +96,44 @@ test('shows English import choices and a localized error for an invalid file', a
     await page.request.delete(`/api/projects/${id}`);
   }
 });
+
+test('names a newly imported English copy without renaming the source project', async ({
+  page,
+}) => {
+  const name = `English copy QA ${crypto.randomUUID()}`;
+  const created = await page.request.post('/api/projects', { data: { name } });
+  expect(created.ok()).toBeTruthy();
+  const { id } = (await created.json()) as { id: string };
+  let copyId = '';
+  try {
+    const exported = await page.request.get(`/api/projects/${id}/export`);
+    expect(exported.ok()).toBeTruthy();
+    const file = await exported.body();
+    await page.addInitScript(() => localStorage.setItem('pdr2-locale', 'en'));
+    await page.goto('/');
+    await page.getByRole('button', { name: 'Import JSON' }).click();
+    await page
+      .locator('input[type=file]')
+      .setInputFiles({ name: 'project.json', mimeType: 'application/json', buffer: file });
+    await page.getByRole('button', { name: 'Create a copy' }).click();
+    await expect(page.getByRole('heading', { name: `${name} (copy)`, exact: true })).toBeVisible();
+    const projects = (await (await page.request.get('/api/projects')).json()) as Array<{
+      id: string;
+      name: string;
+    }>;
+    copyId = projects.find((project) => project.name === `${name} (copy)`)?.id ?? '';
+    expect(copyId).not.toBe('');
+    expect(projects.find((project) => project.id === id)?.name).toBe(name);
+  } finally {
+    // A failed assertion can occur after creation but before copyId is assigned.
+    const response = await page.request.get('/api/projects');
+    if (response.ok()) {
+      const projects = (await response.json()) as Array<{ id: string; name: string }>;
+      const copies = projects.filter((project) => project.name.startsWith(`${name} (`));
+      for (const copy of copies) await page.request.delete(`/api/projects/${copy.id}`);
+    } else if (copyId) {
+      await page.request.delete(`/api/projects/${copyId}`);
+    }
+    await page.request.delete(`/api/projects/${id}`);
+  }
+});

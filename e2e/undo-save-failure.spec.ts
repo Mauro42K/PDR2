@@ -49,7 +49,12 @@ test('a failed undo keeps the confirmed state, shows a localized reason, and can
 
     failure = 'http';
     await page.getByRole('button', { name: 'Deshacer' }).click();
-    await expect(page.getByText('Servidor no disponible.')).toBeVisible();
+    await expect(
+      page
+        .getByRole('alert')
+        .filter({ hasText: 'No se pudo guardar. Revisa la conexión y vuelve a intentarlo.' }),
+    ).toBeVisible();
+    await expect(page.getByText('Servidor no disponible.')).toHaveCount(0);
     await expect(field).toHaveValue('Editada');
     await expect(
       (

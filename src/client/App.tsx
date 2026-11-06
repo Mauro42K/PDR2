@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type React from 'react';
 import type { FormEvent } from 'react';
 import { ApiError, api } from './api.js';
+import { localizedApiError } from './api-errors.js';
 import { createId } from './id.js';
 import { messages } from './i18n.js';
 import { Timeline } from './components/Timeline.js';
@@ -15,11 +16,12 @@ import { GroupColorPicker } from './components/GroupColorPicker.js';
 import { planningNotice } from './planningNotice.js';
 import { keyboardShortcuts } from './shortcuts.js';
 
+type UiError = string | { cause: unknown; fallback: 'syncError' | 'saveError' | 'error' };
 type Theme = 'system' | 'light' | 'dark';
-const THEME_OPTIONS: { value: Theme; es: string; en: string }[] = [
-  { value: 'system', es: 'Sistema', en: 'System' },
-  { value: 'light', es: 'Claro', en: 'Light' },
-  { value: 'dark', es: 'Oscuro', en: 'Dark' },
+const THEME_OPTIONS: { value: Theme; label: 'themeSystem' | 'themeLight' | 'themeDark' }[] = [
+  { value: 'system', label: 'themeSystem' },
+  { value: 'light', label: 'themeLight' },
+  { value: 'dark', label: 'themeDark' },
 ];
 import { positionRowActions } from './positionRowActions.js';
 import { canMoveTaskWithinScope, moveTaskWithinScope } from '../shared/orden-tareas.js';
@@ -115,13 +117,13 @@ export function App() {
     blocked: t.statusBlocked,
     completed: t.statusCompleted,
   };
-  const deletionConfirmationWord = locale === 'es' ? 'BORRAR' : 'DELETE';
+  const deletionConfirmationWord = t.deletionConfirmationWord;
   const [projects, setProjects] = useState<ProjectSummary[]>([]);
   const [project, setProject] = useState<Project | null>(null);
   const [saveState, setSaveState] = useState<SaveState>('saved');
-  const [error, setError] = useState('');
+  const [error, setError] = useState<UiError>('');
   const [projectNameMode, setProjectNameMode] = useState<'create' | 'rename' | null>(null);
-  const renameProjectLabel = locale === 'es' ? 'Renombrar proyecto' : 'Rename project';
+  const renameProjectLabel = t.renameProjectLabel;
   const [projectDrawerOpen, setProjectDrawerOpen] = useState(false);
   const [projectName, setProjectName] = useState('');
   const [taskNameDrafts, setTaskNameDrafts] = useState<Record<string, string>>({});
@@ -207,7 +209,7 @@ export function App() {
   const [deleteProjectName, setDeleteProjectName] = useState('');
   const [deleteProjectDraft, setDeleteProjectDraft] = useState('');
   const [deletingProject, setDeletingProject] = useState(false);
-  const [deleteProjectError, setDeleteProjectError] = useState('');
+  const [deleteProjectError, setDeleteProjectError] = useState<UiError>('');
   const deleteProjectDialogRef = useRef<HTMLDialogElement>(null);
   const deleteProjectInputRef = useRef<HTMLInputElement>(null);
   const deleteProjectCancelRef = useRef<HTMLButtonElement>(null);
@@ -258,7 +260,7 @@ export function App() {
     [project?.id],
   );
   useEffect(() => {
-    void refreshProjects().catch((e: unknown) => setError(userFacingError(e, t.syncError)));
+    void refreshProjects().catch((e: unknown) => setError(userFacingError(e, 'syncError')));
   }, []);
   useEffect(() => {
     localStorage.setItem('pdr2-locale', locale);
@@ -353,11 +355,7 @@ export function App() {
   };
   const selectProject = (id: string) => {
     if (writeLock.current || navigating.current) {
-      setError(
-        locale === 'es'
-          ? 'Espera a que termine la operación.'
-          : 'Wait for the operation to finish.',
-      );
+      setError(t.appWaitForTheOperationTo);
       return;
     }
     if (id === projectRef.current?.id) {
@@ -379,7 +377,7 @@ export function App() {
         setTaskNameDrafts({});
       })
       .catch((e: unknown) => {
-        if (version === navigationVersion.current) setError(userFacingError(e, t.syncError));
+        if (version === navigationVersion.current) setError(userFacingError(e, 'syncError'));
       })
       .finally(() => {
         if (version === navigationVersion.current) navigating.current = false;
@@ -387,21 +385,16 @@ export function App() {
     setProjectDrawerOpen(false);
   };
 
-  // Server messages are Spanish-only text, so they are shown only in Spanish; any other failure (network, bare HTTP, parse errors) gets the localized fallback instead of technical text such as "Failed to fetch".
-  const userFacingError = (error: unknown, fallback: string) =>
-    error instanceof ApiError &&
-    locale === 'es' &&
-    typeof (error.data as { message?: unknown } | undefined)?.message === 'string'
-      ? error.message
-      : fallback;
+  const userFacingError = (
+    cause: unknown,
+    fallback: 'syncError' | 'saveError' | 'error',
+  ): UiError => ({ cause, fallback });
+  const displayError = (value: UiError) =>
+    typeof value === 'string' ? value : localizedApiError(value.cause, locale, t[value.fallback]);
   const updateProject = useCallback(
     async (operation: () => Promise<Project>, conflictData?: DateConflictState) => {
       if (writeLock.current || navigating.current) {
-        setError(
-          locale === 'es'
-            ? 'Espera a que termine la operación y vuelve a intentarlo.'
-            : 'Wait for the operation to finish and try again.',
-        );
+        setError(t.appWaitForTheOperationTo2);
         return false;
       }
       writeLock.current = true;
@@ -431,7 +424,7 @@ export function App() {
           setConflict(conflictData);
         } else {
           setSaveState('error');
-          setError(userFacingError(e, t.saveError));
+          setError(userFacingError(e, 'saveError'));
         }
         return false;
       } finally {
@@ -443,11 +436,7 @@ export function App() {
   const restoreHistory = async (direction: 'undo' | 'redo') => {
     if (!project) return;
     if (writeLock.current || navigating.current) {
-      setError(
-        locale === 'es'
-          ? 'Espera a que termine la operación y vuelve a intentarlo.'
-          : 'Wait for the operation to finish and try again.',
-      );
+      setError(t.appWaitForTheOperationTo2);
       return;
     }
     const h = historyRef.current;
@@ -473,7 +462,7 @@ export function App() {
       setSaveState('saved');
     } catch (e) {
       setSaveState('error');
-      setError(userFacingError(e, t.saveError));
+      setError(userFacingError(e, 'saveError'));
     } finally {
       writeLock.current = false;
     }
@@ -688,11 +677,7 @@ export function App() {
       return;
     }
     if (writeLock.current || navigating.current) {
-      setError(
-        locale === 'es'
-          ? 'Espera a que termine la operación.'
-          : 'Wait for the operation to finish.',
-      );
+      setError(t.appWaitForTheOperationTo);
       return;
     }
     writeLock.current = true;
@@ -704,7 +689,7 @@ export function App() {
       setHistory({ past: [], future: [] });
       await refreshProjects(created.id);
     } catch (e) {
-      setError(userFacingError(e, t.error));
+      setError(userFacingError(e, 'error'));
     } finally {
       writeLock.current = false;
     }
@@ -908,7 +893,7 @@ export function App() {
       anchor.click();
       URL.revokeObjectURL(url);
     } catch (e) {
-      setError(userFacingError(e, t.error));
+      setError(userFacingError(e, 'error'));
     }
   };
   const chooseFile = async (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -927,23 +912,19 @@ export function App() {
   const performImport = async (mode: 'copy' | 'replace') => {
     if (!importFile) return;
     if (writeLock.current || navigating.current) {
-      setError(
-        locale === 'es'
-          ? 'Espera a que termine la operación.'
-          : 'Wait for the operation to finish.',
-      );
+      setError(t.appWaitForTheOperationTo);
       return;
     }
     writeLock.current = true;
     ++navigationVersion.current;
     try {
-      const imported = await api.importProject(importFile, mode, importTarget || undefined);
+      const imported = await api.importProject(importFile, mode, importTarget || undefined, locale);
       setImportOpen(false);
       setImportFile(null);
       setHistory({ past: [], future: [] });
       await refreshProjects(imported.id);
     } catch (e) {
-      setError(userFacingError(e, t.saveError));
+      setError(userFacingError(e, 'saveError'));
     } finally {
       writeLock.current = false;
     }
@@ -980,7 +961,7 @@ export function App() {
       try {
         await api.deleteProject(deletedProjectId);
       } catch (e) {
-        setDeleteProjectError(userFacingError(e, t.error));
+        setDeleteProjectError(userFacingError(e, 'error'));
         return;
       }
       setDeleteProjectOpen(false);
@@ -994,7 +975,7 @@ export function App() {
       try {
         await refreshProjects();
       } catch (e) {
-        setError(userFacingError(e, t.syncError));
+        setError(userFacingError(e, 'syncError'));
       }
       requestAnimationFrame(() =>
         (
@@ -1114,11 +1095,11 @@ export function App() {
       <main className="startup-error">
         <Brand />
         <p>{t.syncError}</p>
-        <code>{error}</code>
+        <code>{displayError(error)}</code>
         <button
           onClick={() => {
             setError('');
-            void refreshProjects().catch((e: Error) => setError(e.message));
+            void refreshProjects().catch((e: unknown) => setError(userFacingError(e, 'syncError')));
           }}
         >
           {t.retry}
@@ -1185,13 +1166,7 @@ export function App() {
           </div>
           <div className="section-label">
             {t.projects}
-            <span
-              data-tip={
-                locale === 'es'
-                  ? 'Proyectos guardados en este equipo'
-                  : 'Projects saved on this computer'
-              }
-            >
+            <span data-tip={t.appProjectsSavedOnThisComputer}>
               {projects.length.toString().padStart(2, '0')}
             </span>
           </div>
@@ -1229,12 +1204,12 @@ export function App() {
                     <h1>{project.name}</h1>
                     <span className="project-status">
                       <i />
-                      {locale === 'es' ? 'En planificación' : 'Planning'}
+                      {t.appPlanning}
                     </span>
                   </div>
                   <p className="subtitle">
-                    {locale === 'es' ? 'Cronograma de trabajo' : 'Project schedule'} <span>·</span>{' '}
-                    {project.tasks.length} {t.tasks.toLowerCase()}
+                    {t.appProjectSchedule} <span>·</span> {project.tasks.length}{' '}
+                    {t.tasks.toLowerCase()}
                   </p>
                 </div>
                 <div className="project-actions">
@@ -1248,11 +1223,7 @@ export function App() {
                   </button>
                   <button
                     className="secondary-button"
-                    data-tip={
-                      locale === 'es'
-                        ? 'Importar un archivo JSON como proyecto'
-                        : 'Import a JSON file as a project'
-                    }
+                    data-tip={t.appImportAJsonFileAs}
                     onClick={() => fileInput.current?.click()}
                   >
                     <Icon name="upload" />
@@ -1260,11 +1231,7 @@ export function App() {
                   </button>
                   <button
                     className="secondary-button"
-                    data-tip={
-                      locale === 'es'
-                        ? 'Descargar el proyecto como archivo JSON'
-                        : 'Download the project as a JSON file'
-                    }
+                    data-tip={t.appDownloadTheProjectAsA}
                     onClick={() => void exportProject()}
                   >
                     <Icon name="download" />
@@ -1303,11 +1270,7 @@ export function App() {
                 }
               >
                 <div className="card-toolbar">
-                  <div
-                    className="view-tabs"
-                    role="tablist"
-                    aria-label={locale === 'es' ? 'Vista del proyecto' : 'Project view'}
-                  >
+                  <div className="view-tabs" role="tablist" aria-label={t.appProjectView}>
                     {(['planning', 'tracking', 'summary'] as ViewMode[]).map((mode) => (
                       <button
                         key={mode}
@@ -1353,10 +1316,8 @@ export function App() {
                       className="secondary-button toolbar-icon-button"
                       disabled={!history.past.length}
                       onClick={() => void restoreHistory('undo')}
-                      aria-label={locale === 'es' ? 'Deshacer' : 'Undo'}
-                      data-tip={
-                        locale === 'es' ? 'Deshacer el último cambio' : 'Undo the last change'
-                      }
+                      aria-label={t.appUndo}
+                      data-tip={t.appUndoTheLastChange}
                     >
                       <svg
                         aria-hidden="true"
@@ -1375,10 +1336,8 @@ export function App() {
                       className="secondary-button toolbar-icon-button"
                       disabled={!history.future.length}
                       onClick={() => void restoreHistory('redo')}
-                      aria-label={locale === 'es' ? 'Rehacer' : 'Redo'}
-                      data-tip={
-                        locale === 'es' ? 'Rehacer el cambio deshecho' : 'Redo the undone change'
-                      }
+                      aria-label={t.appRedo}
+                      data-tip={t.appRedoTheUndoneChange}
                     >
                       <svg
                         aria-hidden="true"
@@ -1395,29 +1354,19 @@ export function App() {
                     </button>
                     <button
                       className="secondary-button"
-                      data-tip={
-                        locale === 'es'
-                          ? 'Agregar un grupo para organizar tareas'
-                          : 'Add a group to organize tasks'
-                      }
+                      data-tip={t.appAddAGroupToOrganize}
                       onClick={() => openGroupDialog('create')}
                     >
-                      {locale === 'es' ? '+ Grupo' : '+ Group'}
+                      {t.addGroupAction}
                     </button>
                     <button
                       className="primary-button"
-                      data-tip={
-                        locale === 'es'
-                          ? 'Agregar una tarea al proyecto'
-                          : 'Add a task to the project'
-                      }
+                      data-tip={t.appAddATaskToThe}
                       onClick={(event) => openTaskDialog(undefined, event.currentTarget)}
                     >
-                      {locale === 'es' ? '+ Tarea' : '+ Task'}
+                      {t.appTask}
                     </button>
-                    <span className="calendar-status">
-                      {locale === 'es' ? 'Días calendario' : 'Calendar days'}
-                    </span>
+                    <span className="calendar-status">{t.appCalendarDays}</span>
                   </div>
                 </div>
 
@@ -1442,11 +1391,7 @@ export function App() {
                           <span>{t.duration}</span>
                           <span
                             className="predecessors-heading"
-                            data-tip={
-                              locale === 'es'
-                                ? 'Predecesoras: número de tarea de cada predecesora'
-                                : 'Predecessors: task number of each predecessor'
-                            }
+                            data-tip={t.appPredecessorsTaskNumberOfEach}
                           >
                             Pred.
                           </span>
@@ -1461,21 +1406,11 @@ export function App() {
                             aria-valuenow={effectiveNameWidth ?? undefined}
                             aria-valuetext={
                               effectiveNameWidth === null
-                                ? locale === 'es'
-                                  ? 'Automático'
-                                  : 'Automatic'
+                                ? t.appAutomatic
                                 : `${effectiveNameWidth} px`
                             }
-                            aria-label={
-                              locale === 'es'
-                                ? 'Ancho de la columna de tareas. Arrastra, usa las flechas o doble clic para restablecer'
-                                : 'Task column width. Drag, use the arrow keys, or double-click to reset'
-                            }
-                            title={
-                              locale === 'es'
-                                ? 'Arrastra para cambiar el ancho de la columna de tareas'
-                                : 'Drag to change the task column width'
-                            }
+                            aria-label={t.appTaskColumnWidthDragUse}
+                            title={t.appDragToChangeTheTask}
                             onPointerDown={startNameResize}
                             onKeyDown={nameResizeKey}
                             onDoubleClick={() => setNameWidth(null)}
@@ -1484,7 +1419,7 @@ export function App() {
                         {visibleRows.map((row) =>
                           row.kind === 'ungrouped' ? (
                             <div className="group-toolbar group-toolbar-ungrouped" key="ungrouped">
-                              <span>{locale === 'es' ? 'Sin grupo' : 'No group'}</span>
+                              <span>{t.appNoGroup}</span>
                             </div>
                           ) : row.kind === 'group' ? (
                             (() => {
@@ -1535,10 +1470,8 @@ export function App() {
                                     }}
                                   >
                                     <summary
-                                      aria-label={`${locale === 'es' ? 'Opciones del grupo' : 'Group options'}: ${group.name}`}
-                                      title={
-                                        locale === 'es' ? 'Opciones del grupo' : 'Group options'
-                                      }
+                                      aria-label={`${t.appGroupOptions}: ${group.name}`}
+                                      title={t.appGroupOptions}
                                     >
                                       <svg
                                         aria-hidden="true"
@@ -1573,9 +1506,7 @@ export function App() {
                                           openTaskDialog(group.id, trigger);
                                         }}
                                       >
-                                        {locale === 'es'
-                                          ? 'Añadir tarea a este grupo'
-                                          : 'Add task to this group'}
+                                        {t.appAddTaskToThisGroup}
                                       </button>
                                       <button
                                         onClick={(event) => {
@@ -1583,13 +1514,7 @@ export function App() {
                                           editNote({ kind: 'group', item: group }, trigger);
                                         }}
                                       >
-                                        {locale === 'es'
-                                          ? group.note?.trim()
-                                            ? 'Ver o editar nota'
-                                            : 'Añadir nota'
-                                          : group.note?.trim()
-                                            ? 'View or edit note'
-                                            : 'Add note'}
+                                        {group.note?.trim() ? t.appViewOrEditNote : t.appAddNote}
                                       </button>
                                       <button
                                         disabled={groupIndex === 0}
@@ -1609,7 +1534,7 @@ export function App() {
                                           });
                                         }}
                                       >
-                                        {locale === 'es' ? 'Subir grupo' : 'Move group up'}
+                                        {t.appMoveGroupUp}
                                       </button>
                                       <button
                                         disabled={groupIndex === project.groups!.length - 1}
@@ -1629,7 +1554,7 @@ export function App() {
                                           });
                                         }}
                                       >
-                                        {locale === 'es' ? 'Bajar grupo' : 'Move group down'}
+                                        {t.appMoveGroupDown}
                                       </button>
                                       <button
                                         onClick={(event) =>
@@ -1640,7 +1565,7 @@ export function App() {
                                           )
                                         }
                                       >
-                                        {locale === 'es' ? 'Renombrar' : 'Rename'}
+                                        {t.appRename}
                                       </button>
                                       <button
                                         onClick={(event) => {
@@ -1648,7 +1573,7 @@ export function App() {
                                           openGroupDialog('delete', group.id, trigger);
                                         }}
                                       >
-                                        {locale === 'es' ? 'Eliminar grupo' : 'Delete group'}
+                                        {t.appDeleteGroup}
                                       </button>
                                     </div>
                                   </details>
@@ -1833,10 +1758,8 @@ export function App() {
                                       }}
                                     >
                                       <summary
-                                        aria-label={`${locale === 'es' ? 'Acciones de tarea' : 'Task actions'}: ${task.name}`}
-                                        title={
-                                          locale === 'es' ? 'Acciones de tarea' : 'Task actions'
-                                        }
+                                        aria-label={`${t.appTaskActions}: ${task.name}`}
+                                        title={t.appTaskActions}
                                       >
                                         <svg
                                           aria-hidden="true"
@@ -1856,13 +1779,7 @@ export function App() {
                                             editNote({ kind: 'task', item: task }, trigger);
                                           }}
                                         >
-                                          {locale === 'es'
-                                            ? task.note?.trim()
-                                              ? 'Ver o editar nota'
-                                              : 'Añadir nota'
-                                            : task.note?.trim()
-                                              ? 'View or edit note'
-                                              : 'Add note'}
+                                          {task.note?.trim() ? t.appViewOrEditNote : t.appAddNote}
                                         </button>
                                         <DependencyEditor
                                           task={task}
@@ -1875,9 +1792,9 @@ export function App() {
                                           onRemove={removeTaskDependency}
                                         />
                                         <label>
-                                          {locale === 'es' ? 'Grupo' : 'Group'}
+                                          {t.appGroup}
                                           <select
-                                            aria-label={`${locale === 'es' ? 'Grupo de' : 'Group for'} ${task.name}`}
+                                            aria-label={`${t.appGroupFor} ${task.name}`}
                                             value={task.groupId ?? ''}
                                             onChange={(event) =>
                                               void changeState({
@@ -1893,9 +1810,7 @@ export function App() {
                                               })
                                             }
                                           >
-                                            <option value="">
-                                              {locale === 'es' ? 'Sin grupo' : 'Ungrouped'}
-                                            </option>
+                                            <option value="">{t.appUngrouped}</option>
                                             {(project.groups ?? []).map((g) => (
                                               <option key={g.id} value={g.id}>
                                                 {g.name}
@@ -1917,7 +1832,7 @@ export function App() {
                                             if (next) void changeState({ ...project, tasks: next });
                                           }}
                                         >
-                                          {locale === 'es' ? 'Subir tarea' : 'Move task up'}
+                                          {t.appMoveTaskUp}
                                         </button>
                                         <button
                                           disabled={
@@ -1933,7 +1848,7 @@ export function App() {
                                             if (next) void changeState({ ...project, tasks: next });
                                           }}
                                         >
-                                          {locale === 'es' ? 'Bajar tarea' : 'Move task down'}
+                                          {t.appMoveTaskDown}
                                         </button>
                                         <button
                                           className="row-actions-delete"
@@ -1946,7 +1861,7 @@ export function App() {
                                             setDeleteTaskId(task.id);
                                           }}
                                         >
-                                          {locale === 'es' ? 'Eliminar tarea' : 'Delete task'}
+                                          {t.appDeleteTask}
                                         </button>
                                       </div>
                                     </details>
@@ -2001,11 +1916,7 @@ export function App() {
                           <div className="empty-grid">
                             <span className="empty-icon">⌁</span>
                             <b>{t.noTasks}</b>
-                            <small>
-                              {locale === 'es'
-                                ? 'Usa «+ Tarea» para añadir la primera tarea al cronograma.'
-                                : 'Use “+ Task” to add the first task to the timeline.'}
-                            </small>
+                            <small>{t.appUseTaskToAddThe}</small>
                           </div>
                         )}
                       </div>
@@ -2036,26 +1947,21 @@ export function App() {
                 <div className="editor-footer">
                   <span>
                     <i className="legend-task" />
-                    {locale === 'es' ? 'Tarea' : 'Task'} <i className="legend-dependency" />
+                    {t.appTask2} <i className="legend-dependency" />
                     {t.dependency}
                   </span>
                   <span className="dependency-help">{t.dependencyHelp}</span>
                   <div className="keyboard-hint">
                     <span className="keyboard-guidance" role="status" aria-live="polite">
-                      {keyboardNotice ||
-                        (locale === 'es'
-                          ? 'Pulsa ? para ver los atajos de teclado.'
-                          : 'Press ? to see keyboard shortcuts.')}
+                      {keyboardNotice || t.appPressToSeeKeyboardShortcuts}
                     </span>
                     <button
                       type="button"
                       className="shortcuts-button"
-                      data-tip={
-                        locale === 'es' ? 'Ver la lista de atajos (?)' : 'Show shortcut list (?)'
-                      }
+                      data-tip={t.appShowShortcutList}
                       onClick={openShortcuts}
                     >
-                      {locale === 'es' ? 'Atajos de teclado' : 'Keyboard shortcuts'}
+                      {t.appKeyboardShortcuts}
                     </button>
                   </div>
                   <span id="timeline-keyboard-help" className="sr-only">
@@ -2112,11 +2018,7 @@ export function App() {
             <section className="welcome-card">
               <span className="welcome-mark">P</span>
               <h1>{t.empty}</h1>
-              <p>
-                {locale === 'es'
-                  ? 'Una vista clara para convertir fechas y tareas en un plan que puedas ajustar.'
-                  : 'A clear workspace to turn dates and tasks into a plan you can adjust.'}
-              </p>
+              <p>{t.appAClearWorkspaceToTurn}</p>
               <button
                 className="primary-button"
                 onClick={(event) => openNewProject(event.currentTarget)}
@@ -2128,18 +2030,14 @@ export function App() {
           <footer className="page-footer">
             <span>© {new Date().getFullYear()} PDR 2.0</span>
             <span>{t.noInternet}</span>
-            <span>
-              {locale === 'es'
-                ? 'Días calendario · Guardado automático'
-                : 'Calendar days · Autosave'}
-            </span>
+            <span>{t.appCalendarDaysAutosave}</span>
           </footer>
         </main>
       </div>
       {error && projectNameMode !== 'rename' && (
         <div role="alert" className="toast-error">
           <span>!</span>
-          {error}
+          {displayError(error)}
           <button aria-label={t.close} onClick={() => setError('')}>
             ×
           </button>
@@ -2160,9 +2058,7 @@ export function App() {
         }}
       >
         <div className="modal-heading">
-          <h2 id="delete-project-heading">
-            {locale === 'es' ? 'Eliminar proyecto' : 'Delete project'}
-          </h2>
+          <h2 id="delete-project-heading">{t.appDeleteProject}</h2>
           <button
             type="button"
             className="modal-close"
@@ -2176,43 +2072,23 @@ export function App() {
         {deleteProjectStep === 1 ? (
           <>
             <p id="delete-project-description" className="modal-copy">
-              {locale === 'es' ? (
-                <>
-                  Se eliminará <b>{deleteProjectName}</b>, junto con todas sus tareas, grupos, notas
-                  y dependencias. Esta acción no se puede deshacer.
-                </>
-              ) : (
-                <>
-                  This will permanently delete <b>{deleteProjectName}</b>, including all tasks,
-                  groups, notes, and dependencies. This action cannot be undone.
-                </>
-              )}
+              {t.deleteProjectWarningBefore}
+              <b>{deleteProjectName}</b>
+              {t.deleteProjectWarningAfter}
             </p>
             <p className="delete-project-step-hint">
-              {locale === 'es'
-                ? `Para continuar, tendrás que escribir ${deletionConfirmationWord} en el siguiente paso.`
-                : `To continue, you will need to type ${deletionConfirmationWord} in the next step.`}
+              {t.appToContinueYouWillNeed.replace('{0}', String(deletionConfirmationWord))}
             </p>
           </>
         ) : (
           <>
             <p id="delete-project-description" className="modal-copy">
-              {locale === 'es' ? (
-                <>
-                  Para confirmar la eliminación permanente de <b>{deleteProjectName}</b>, escribe la
-                  palabra indicada.
-                </>
-              ) : (
-                <>
-                  To confirm permanent deletion of <b>{deleteProjectName}</b>, type the word shown
-                  below.
-                </>
-              )}
+              {t.deleteProjectConfirmBefore}
+              <b>{deleteProjectName}</b>
+              {t.deleteProjectConfirmAfter}
             </p>
             <label className="modal-field" htmlFor="delete-project-confirmation">
-              {locale === 'es'
-                ? `Escribe ${deletionConfirmationWord} para confirmar`
-                : `Type ${deletionConfirmationWord} to confirm`}
+              {t.appTypeToConfirm.replace('{0}', String(deletionConfirmationWord))}
               <input
                 ref={deleteProjectInputRef}
                 id="delete-project-confirmation"
@@ -2233,7 +2109,7 @@ export function App() {
         )}
         {deleteProjectError && (
           <p className="delete-project-error" role="alert">
-            {deleteProjectError}
+            {displayError(deleteProjectError)}
           </p>
         )}
         <div className="modal-actions">
@@ -2253,7 +2129,7 @@ export function App() {
               disabled={deletingProject || writeLock.current || navigating.current}
               onClick={() => setDeleteProjectStep(2)}
             >
-              {locale === 'es' ? 'Continuar' : 'Continue'}
+              {t.appContinue}
             </button>
           ) : (
             <button
@@ -2267,13 +2143,7 @@ export function App() {
               }
               onClick={() => void deleteProject()}
             >
-              {deletingProject
-                ? locale === 'es'
-                  ? 'Eliminando…'
-                  : 'Deleting…'
-                : locale === 'es'
-                  ? 'Eliminar proyecto'
-                  : 'Delete project'}
+              {deletingProject ? t.appDeleting : t.appDeleteProject}
             </button>
           )}
         </div>
@@ -2293,20 +2163,12 @@ export function App() {
           <div className="modal-heading">
             <h2 id="action-dialog-title">
               {deleteTaskId
-                ? locale === 'es'
-                  ? 'Eliminar tarea'
-                  : 'Delete task'
+                ? t.appDeleteTask
                 : groupDialog?.mode === 'delete'
-                  ? locale === 'es'
-                    ? 'Eliminar grupo'
-                    : 'Delete group'
+                  ? t.appDeleteGroup
                   : groupDialog?.mode === 'rename'
-                    ? locale === 'es'
-                      ? 'Renombrar grupo'
-                      : 'Rename group'
-                    : locale === 'es'
-                      ? 'Nuevo grupo'
-                      : 'New group'}
+                    ? t.appRenameGroup
+                    : t.appNewGroup}
             </h2>
             <button
               type="button"
@@ -2321,43 +2183,19 @@ export function App() {
             <>
               {deleteTaskStep === 1 ? (
                 <p className="modal-copy">
-                  {locale === 'es' ? (
-                    <>
-                      Se eliminará{' '}
-                      <b>{project?.tasks.find((task) => task.id === deleteTaskId)?.name}</b> y sus
-                      dependencias. Puedes recuperar la tarea y sus relaciones con Deshacer. Para
-                      continuar, tendrás que escribir {deletionConfirmationWord}.
-                    </>
-                  ) : (
-                    <>
-                      This will delete{' '}
-                      <b>{project?.tasks.find((task) => task.id === deleteTaskId)?.name}</b> and its
-                      dependencies. You can restore the task and its relationships with Undo. To
-                      continue, you will need to type {deletionConfirmationWord}.
-                    </>
-                  )}
+                  {t.deleteTaskWarningBefore}
+                  <b>{project?.tasks.find((task) => task.id === deleteTaskId)?.name}</b>
+                  {t.deleteTaskWarningAfter.replace('{word}', deletionConfirmationWord)}
                 </p>
               ) : (
                 <>
                   <p className="modal-copy">
-                    {locale === 'es' ? (
-                      <>
-                        Para confirmar la eliminación de{' '}
-                        <b>{project?.tasks.find((task) => task.id === deleteTaskId)?.name}</b>,
-                        escribe la palabra indicada.
-                      </>
-                    ) : (
-                      <>
-                        To confirm deletion of{' '}
-                        <b>{project?.tasks.find((task) => task.id === deleteTaskId)?.name}</b>, type
-                        the word shown below.
-                      </>
-                    )}
+                    {t.deleteTaskConfirmBefore}
+                    <b>{project?.tasks.find((task) => task.id === deleteTaskId)?.name}</b>
+                    {t.deleteTaskConfirmAfter}
                   </p>
                   <label className="modal-field" htmlFor="delete-task-confirmation">
-                    {locale === 'es'
-                      ? `Escribe ${deletionConfirmationWord} para confirmar`
-                      : `Type ${deletionConfirmationWord} to confirm`}
+                    {t.appTypeToConfirm.replace('{0}', String(deletionConfirmationWord))}
                     <input
                       id="delete-task-confirmation"
                       autoFocus
@@ -2379,16 +2217,10 @@ export function App() {
             </>
           ) : groupDialog?.mode === 'delete' ? (
             <>
-              <p className="modal-copy">
-                {locale === 'es'
-                  ? 'Las tareas de este grupo se conservarán sin grupo. Puedes deshacer esta acción.'
-                  : 'Tasks will remain ungrouped. You can undo this action.'}
-              </p>
+              <p className="modal-copy">{t.appTasksWillRemainUngroupedYou}</p>
               {groupDialog.step === 2 && (
                 <label className="modal-field">
-                  {locale === 'es'
-                    ? `Escribe ${deletionConfirmationWord} para confirmar`
-                    : `Type ${deletionConfirmationWord} to confirm`}
+                  {t.appTypeToConfirm.replace('{0}', String(deletionConfirmationWord))}
                   <input
                     autoFocus
                     value={groupDraft}
@@ -2399,7 +2231,7 @@ export function App() {
             </>
           ) : (
             <label className="modal-field">
-              {locale === 'es' ? 'Nombre del grupo' : 'Group name'}
+              {t.appGroupName}
               <input
                 autoFocus
                 maxLength={160}
@@ -2440,23 +2272,13 @@ export function App() {
             >
               {deleteTaskId
                 ? deleteTaskStep === 1
-                  ? locale === 'es'
-                    ? 'Continuar'
-                    : 'Continue'
-                  : locale === 'es'
-                    ? 'Eliminar tarea'
-                    : 'Delete task'
+                  ? t.appContinue
+                  : t.appDeleteTask
                 : groupDialog?.mode === 'delete'
                   ? groupDialog.step === 1
-                    ? locale === 'es'
-                      ? 'Continuar'
-                      : 'Continue'
-                    : locale === 'es'
-                      ? 'Eliminar grupo'
-                      : 'Delete group'
-                  : locale === 'es'
-                    ? 'Guardar'
-                    : 'Save'}
+                    ? t.appContinue
+                    : t.appDeleteGroup
+                  : t.appSave}
             </button>
           </div>
         </dialog>
@@ -2474,7 +2296,7 @@ export function App() {
         >
           <form onSubmit={(event) => void createTask(event)}>
             <div className="modal-heading">
-              <h2 id="task-create-heading">{locale === 'es' ? 'Nueva tarea' : 'New task'}</h2>
+              <h2 id="task-create-heading">{t.appNewTask}</h2>
               <button
                 type="button"
                 className="modal-close"
@@ -2500,7 +2322,7 @@ export function App() {
               <div className="modal-field">
                 <span>{t.start}</span>
                 <DateControl
-                  ariaLabel={`${t.start} ${locale === 'es' ? 'nueva' : 'new task'}`}
+                  ariaLabel={`${t.start} ${t.appNewTask2}`}
                   locale={locale}
                   value={taskStart}
                   onChange={(next) => {
@@ -2512,7 +2334,7 @@ export function App() {
               <div className="modal-field">
                 <span>{t.end}</span>
                 <DateControl
-                  ariaLabel={`${t.end} ${locale === 'es' ? 'nueva' : 'new task'}`}
+                  ariaLabel={`${t.end} ${t.appNewTask2}`}
                   locale={locale}
                   value={taskIsMilestone ? taskStart : taskEnd}
                   min={taskStart}
@@ -2530,13 +2352,13 @@ export function App() {
               {t.milestoneLabel}
             </label>
             <label className="modal-field">
-              {locale === 'es' ? 'Grupo' : 'Group'}
+              {t.appGroup}
               <select
-                aria-label={locale === 'es' ? 'Grupo de la nueva tarea' : 'Group for new task'}
+                aria-label={t.appGroupForNewTask}
                 value={taskTargetGroupId}
                 onChange={(event) => setTaskTargetGroupId(event.target.value)}
               >
-                <option value="">{locale === 'es' ? 'Sin grupo' : 'Ungrouped'}</option>
+                <option value="">{t.appUngrouped}</option>
                 {(project?.groups ?? []).map((group) => (
                   <option key={group.id} value={group.id}>
                     {group.name}
@@ -2546,7 +2368,7 @@ export function App() {
             </label>
             {saveState === 'error' && (
               <p role="alert" className="note-error">
-                {error}
+                {displayError(error)}
               </p>
             )}
             <div className="modal-actions">
@@ -2579,15 +2401,11 @@ export function App() {
           }}
         >
           <div className="modal-heading">
-            <h2 id="note-heading">
-              {locale === 'es'
-                ? `Nota · ${noteTarget.item.name}`
-                : `Note · ${noteTarget.item.name}`}
-            </h2>
+            <h2 id="note-heading">{t.appNote.replace('{0}', () => noteTarget.item.name)}</h2>
             <button
               type="button"
               className="modal-close"
-              aria-label={locale === 'es' ? 'Guardar y cerrar' : 'Save and close'}
+              aria-label={t.appSaveAndClose}
               disabled={saveState === 'saving'}
               onClick={() => void saveNote()}
             >
@@ -2595,7 +2413,7 @@ export function App() {
             </button>
           </div>
           <label className="modal-field" htmlFor="item-note">
-            {locale === 'es' ? 'Nota' : 'Note'}
+            {t.appNote2}
             <textarea
               id="item-note"
               rows={6}
@@ -2610,23 +2428,14 @@ export function App() {
           </label>
           <p className="note-save-status" role="status" aria-live="polite">
             {saveState === 'saving'
-              ? locale === 'es'
-                ? 'Guardando nota…'
-                : 'Saving note…'
+              ? t.appSavingNote
               : noteSaveFeedback === 'saved'
-                ? locale === 'es'
-                  ? 'Nota guardada.'
-                  : 'Note saved.'
-                : locale === 'es'
-                  ? 'Se guarda automáticamente al cerrar.'
-                  : 'The note is saved automatically when you close it.'}
+                ? t.appNoteSaved
+                : t.appTheNoteIsSavedAutomatically}
           </p>
           {saveState === 'error' && (
             <p role="alert" className="note-error">
-              {error}{' '}
-              {locale === 'es'
-                ? 'Puedes reintentar guardar; el texto sigue aquí.'
-                : 'You can retry saving; your text is still here.'}
+              {displayError(error)} {t.appYouCanRetrySavingYour}
             </p>
           )}
           <div className="modal-actions">
@@ -2636,7 +2445,7 @@ export function App() {
               disabled={saveState === 'saving'}
               onClick={() => void saveNote()}
             >
-              {locale === 'es' ? 'Cerrar' : 'Close'}
+              {t.appClose}
             </button>
             <button
               type="button"
@@ -2644,7 +2453,7 @@ export function App() {
               disabled={saveState === 'saving'}
               onClick={() => void saveNote(false)}
             >
-              {locale === 'es' ? 'Guardar' : 'Save'}
+              {t.appSave}
             </button>
           </div>
         </dialog>
@@ -2667,7 +2476,7 @@ export function App() {
           </button>
         </div>
         <section className="settings-section">
-          <h3>{locale === 'es' ? 'Idioma' : 'Language'}</h3>
+          <h3>{t.appLanguage}</h3>
           <label className="settings-select">
             <span>{t.language}</span>
             <select value={locale} onChange={(event) => setLocale(event.target.value as Locale)}>
@@ -2677,12 +2486,8 @@ export function App() {
           </label>
         </section>
         <section className="settings-section">
-          <h3>{locale === 'es' ? 'Apariencia' : 'Appearance'}</h3>
-          <div
-            className="segmented"
-            role="radiogroup"
-            aria-label={locale === 'es' ? 'Apariencia' : 'Appearance'}
-          >
+          <h3>{t.appAppearance}</h3>
+          <div className="segmented" role="radiogroup" aria-label={t.appAppearance}>
             {THEME_OPTIONS.map((option) => (
               <button
                 key={option.value}
@@ -2692,7 +2497,7 @@ export function App() {
                 className={theme === option.value ? 'is-selected' : ''}
                 onClick={() => setTheme(option.value)}
               >
-                {locale === 'es' ? option.es : option.en}
+                {t[option.label]}
               </button>
             ))}
           </div>
@@ -2705,9 +2510,7 @@ export function App() {
         aria-labelledby="shortcuts-heading"
       >
         <div className="modal-heading">
-          <h2 id="shortcuts-heading">
-            {locale === 'es' ? 'Atajos de teclado' : 'Keyboard shortcuts'}
-          </h2>
+          <h2 id="shortcuts-heading">{t.appKeyboardShortcuts}</h2>
           <button
             className="modal-close"
             aria-label={t.close}
@@ -2815,7 +2618,7 @@ export function App() {
           </label>
           {projectNameMode === 'rename' && error && (
             <p role="alert" className="note-error">
-              {error}
+              {displayError(error)}
             </p>
           )}
           <div className="modal-actions">
@@ -2836,11 +2639,7 @@ export function App() {
               }
             >
               {projectNameMode === 'rename' ? (
-                locale === 'es' ? (
-                  'Guardar'
-                ) : (
-                  'Save'
-                )
+                t.appSave
               ) : (
                 <>
                   {t.create} <span>→</span>

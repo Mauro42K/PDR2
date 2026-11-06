@@ -2,6 +2,7 @@ import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import type { Dependency, Project, Task } from '../../shared/model.js';
 import { dayMs, groupSummary, isISODate } from '../../shared/model.js';
 import { messages } from '../i18n.js';
+import { componentMessages } from '../component-messages.js';
 import type { Locale } from '../../shared/model.js';
 
 type TimelineRow = { kind: 'group'; id: string } | { kind: 'task'; task: Task };
@@ -43,6 +44,7 @@ export function Timeline({
     [project.groups],
   );
   const t = messages(locale);
+  const copy = componentMessages(locale);
   const scroller = useRef<HTMLDivElement>(null);
   const confirmDialog = useRef<HTMLDialogElement>(null);
   const focusAfterDecision = useRef<HTMLElement | null>(null);
@@ -513,31 +515,25 @@ export function Timeline({
         <div
           className="timeline-segment-nav"
           style={{ width: `${viewport.width}px` }}
-          aria-label={
-            locale === 'es' ? 'Navegación del cronograma extenso' : 'Long timeline navigation'
-          }
+          aria-label={copy.longTimeline}
         >
           <button
             type="button"
             disabled={activeSegment === 0 || !!gesture || !!keyboardEdit}
             onClick={() => navigateSegment(activeSegment - 1)}
           >
-            {locale === 'es' ? '← Anterior' : '← Previous'}
+            {copy.previousSegment}
           </button>
-          <span aria-live="polite">
-            {locale === 'es'
-              ? `Tramo ${activeSegment + 1} de ${segmentCount}`
-              : `Segment ${activeSegment + 1} of ${segmentCount}`}
-          </span>
+          <span aria-live="polite">{copy.segment(activeSegment + 1, segmentCount)}</span>
           <button
             type="button"
             disabled={activeSegment === segmentCount - 1 || !!gesture || !!keyboardEdit}
             onClick={() => navigateSegment(activeSegment + 1)}
           >
-            {locale === 'es' ? 'Siguiente →' : 'Next →'}
+            {copy.nextSegment}
           </button>
           <label>
-            {locale === 'es' ? 'Ir a fecha' : 'Go to date'}{' '}
+            {copy.jumpDate}{' '}
             <input
               type="date"
               value={jumpDate}
