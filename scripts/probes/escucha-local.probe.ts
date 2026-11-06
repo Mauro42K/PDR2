@@ -15,12 +15,21 @@ describe('el servidor escucha solo en bucle local por defecto', () => {
     if (!PDR2_TEST_DATABASE_URL) throw new Error('Falta PDR2_TEST_DATABASE_URL en .env');
     const veredicto = verificarDestino(PDR2_TEST_DATABASE_URL);
     if (veredicto.tipo === 'rechazado') throw new Error(veredicto.mensaje);
-    const entorno: NodeJS.ProcessEnv = { ...process.env, PORT: String(puerto), DATABASE_URL: PDR2_TEST_DATABASE_URL };
+    const entorno: NodeJS.ProcessEnv = {
+      ...process.env,
+      PORT: String(puerto),
+      DATABASE_URL: PDR2_TEST_DATABASE_URL,
+    };
     delete entorno.HOST;
-    const servidor = spawn('node_modules/.bin/tsx', ['src/server/index.ts'], { env: entorno, stdio: 'ignore' });
+    const servidor = spawn('node_modules/.bin/tsx', ['src/server/index.ts'], {
+      env: entorno,
+      stdio: 'ignore',
+    });
     try {
       await esperarSalud(puerto);
-      const escucha = execFileSync('lsof', ['-nP', `-iTCP:${puerto}`, '-sTCP:LISTEN'], { encoding: 'utf8' });
+      const escucha = execFileSync('lsof', ['-nP', `-iTCP:${puerto}`, '-sTCP:LISTEN'], {
+        encoding: 'utf8',
+      });
       expect(escucha).toContain(`127.0.0.1:${puerto}`);
       expect(escucha).not.toContain(`*:${puerto}`);
       expect(escucha).not.toContain(`0.0.0.0:${puerto}`);
@@ -45,7 +54,10 @@ async function esperarSalud(puerto: number) {
   for (let intento = 0; intento < 60; intento++) {
     const abierto = await new Promise<boolean>((resolver) => {
       const socket = connect(puerto, '127.0.0.1');
-      socket.once('connect', () => { socket.destroy(); resolver(true); });
+      socket.once('connect', () => {
+        socket.destroy();
+        resolver(true);
+      });
       socket.once('error', () => resolver(false));
     });
     if (abierto) return;

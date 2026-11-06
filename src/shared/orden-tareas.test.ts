@@ -2,9 +2,22 @@ import { describe, expect, it } from 'vitest';
 import { canMoveTaskWithinScope, moveTaskWithinScope, type Task } from './orden-tareas.js';
 
 function task(id: string, groupId: string | null, position: number, number: number): Task {
-  return { id, name: `Tarea ${id}`, startDate: '2026-10-28', endDate: '2026-10-28', position, groupId, number, status: 'pending', progress: 0, isMilestone: false, note: '' };
+  return {
+    id,
+    name: `Tarea ${id}`,
+    startDate: '2026-10-28',
+    endDate: '2026-10-28',
+    position,
+    groupId,
+    number,
+    status: 'pending',
+    progress: 0,
+    isMilestone: false,
+    note: '',
+  };
 }
-const positions = (tasks: Task[]) => Object.fromEntries(tasks.map((item) => [item.id, item.position]));
+const positions = (tasks: Task[]) =>
+  Object.fromEntries(tasks.map((item) => [item.id, item.position]));
 
 describe('orden de tareas dentro de su ámbito (AF-20)', () => {
   it('baja una tarea intercambiando solo su posición con la vecina del mismo grupo', () => {
@@ -18,7 +31,12 @@ describe('orden de tareas dentro de su ámbito (AF-20)', () => {
   });
 
   it('sube una tarea dentro de «Sin grupo» sin saltar tareas de otros grupos', () => {
-    const tasks = [task('a', 'g1', 0, 1), task('b', null, 1, 2), task('c', 'g1', 2, 3), task('d', null, 3, 4)];
+    const tasks = [
+      task('a', 'g1', 0, 1),
+      task('b', null, 1, 2),
+      task('c', 'g1', 2, 3),
+      task('d', null, 3, 4),
+    ];
 
     const next = moveTaskWithinScope(tasks, 'd', -1)!;
 
@@ -43,7 +61,9 @@ describe('orden de tareas dentro de su ámbito (AF-20)', () => {
 
     const next = moveTaskWithinScope(tasks, 'a', 1)!;
 
-    expect(next.find((item) => item.id === 'b')!.position).toBeLessThan(next.find((item) => item.id === 'a')!.position);
+    expect(next.find((item) => item.id === 'b')!.position).toBeLessThan(
+      next.find((item) => item.id === 'a')!.position,
+    );
     expect(next.find((item) => item.id === 'c')!.position).toBe(9);
   });
 

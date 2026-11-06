@@ -10,7 +10,9 @@ import { describe, expect, it } from 'vitest';
 //  - el listener recibe cero conexiones TCP (evidencia de red; sockets Unix no se registran, ver conexiones.mjs);
 //  - el gancho de carga no registra ninguna llamada a `runner` del migrador ni a `spawn` (evidencia de invocación);
 //  - un control positivo demuestra que el gancho sí detecta esas llamadas cuando ocurren.
-const REGISTRO_GANCHOS = pathToFileURL(join(process.cwd(), 'scripts/probes/espia/registro.mjs')).href;
+const REGISTRO_GANCHOS = pathToFileURL(
+  join(process.cwd(), 'scripts/probes/espia/registro.mjs'),
+).href;
 
 describe('npm test rechaza un destino incorrecto antes de conectar o migrar', () => {
   it('sale con error, nombra el destino y no conecta, migra ni lanza procesos hijos', async () => {
@@ -24,7 +26,12 @@ describe('npm test rechaza un destino incorrecto antes de conectar o migrar', ()
     const puerto = (listener.address() as AddressInfo).port;
 
     const candidata = `postgres://pdr2:clave-no-usada@127.0.0.1:${puerto}/pdr2_dev`;
-    const resultado = await correr('npm', ['test'], { PDR2_TEST_DATABASE_URL: candidata, DATABASE_URL: candidata }, espia.entorno);
+    const resultado = await correr(
+      'npm',
+      ['test'],
+      { PDR2_TEST_DATABASE_URL: candidata, DATABASE_URL: candidata },
+      espia.entorno,
+    );
     await new Promise<void>((resolver) => listener.close(() => resolver()));
 
     expect(resultado.codigo).not.toBe(0);
@@ -65,7 +72,7 @@ async function preparar() {
       } catch {
         return [];
       }
-    }
+    },
   };
 }
 
@@ -73,12 +80,12 @@ function correr(
   comando: string,
   argumentos: string[],
   entornoPrueba: Record<string, string>,
-  entornoEspia: Record<string, string>
+  entornoEspia: Record<string, string>,
 ): Promise<{ codigo: number | null; salida: string }> {
   return new Promise((resolver) => {
     const hijo = spawn(comando, argumentos, {
       env: { ...process.env, ...entornoPrueba, ...entornoEspia },
-      stdio: ['ignore', 'pipe', 'pipe']
+      stdio: ['ignore', 'pipe', 'pipe'],
     });
     let salida = '';
     hijo.stdout.on('data', (datos) => (salida += datos));
@@ -94,7 +101,18 @@ describe('control: el registro de conexiones ve una conexión TCP a través de n
     const listener = createServer((socket) => socket.destroy());
     await new Promise<void>((resolver) => listener.listen(0, '127.0.0.1', resolver));
     const puerto = (listener.address() as AddressInfo).port;
-    await correr('npm', ['exec', '--', 'tsx', '-e', `import('node:net').then(({ connect }) => connect(${puerto}, '127.0.0.1').on('error', () => {}))`], {}, espia.entorno);
+    await correr(
+      'npm',
+      [
+        'exec',
+        '--',
+        'tsx',
+        '-e',
+        `import('node:net').then(({ connect }) => connect(${puerto}, '127.0.0.1').on('error', () => {}))`,
+      ],
+      {},
+      espia.entorno,
+    );
     await new Promise<void>((resolver) => listener.close(() => resolver()));
     expect(await espia.llamadas()).toContain(`conexion:${puerto}`);
   }, 60_000);
@@ -105,9 +123,13 @@ describe('control: el espía ve spawn por import por defecto y por import con no
   it('registra proceso-hijo en ambas formas', async () => {
     const espia = await preparar();
     // Debe ser ESM: `tsx -e` se ejecuta como CJS y el espía no ve los imports CJS (límite documentado).
-    await correr('npm', ['exec', '--', 'tsx', 'scripts/probes/fixtures/espia-spawn.mts'], {}, espia.entorno);
+    await correr(
+      'npm',
+      ['exec', '--', 'tsx', 'scripts/probes/fixtures/espia-spawn.mts'],
+      {},
+      espia.entorno,
+    );
     const llamadas = await espia.llamadas();
     expect(llamadas.filter((l) => l === 'proceso-hijo').length).toBeGreaterThanOrEqual(2);
   }, 60_000);
 });
-

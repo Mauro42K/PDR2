@@ -7,6 +7,8 @@ Thanks for your interest. The project is a local, single-user planner, so change
 1. Use Node.js 24.22.1 (see [`.nvmrc`](.nvmrc)) and install the dependencies with `npm install`.
 2. Run the checks:
    ```bash
+   npm run lint
+   npm run format:check
    npm run typecheck
    npm test
    ```
@@ -14,6 +16,8 @@ Thanks for your interest. The project is a local, single-user planner, so change
 3. Keep each pull request focused on one change, and add or update tests for it.
 4. Update the README when user-visible behaviour changes, in both English and Spanish.
 5. Never commit `.env`, database dumps, backups, or personal data. Check your staged changes for secrets before pushing, for example with `gitleaks protect --staged`.
+
+ESLint checks JavaScript and TypeScript syntax and common errors. TypeScript linting does not check undefined or unused names; `typecheck` covers those in the application, but does not cover every script or E2E test. Prettier excludes existing migrations. Run `npm run format` to apply formatting to the remaining files.
 
 ## Commit messages
 
@@ -34,6 +38,8 @@ Gracias por tu interés. El proyecto es un planificador local de un solo usuario
 1. Usa Node.js 24.22.1 (ver [`.nvmrc`](.nvmrc)) e instala las dependencias con `npm install`.
 2. Ejecuta las comprobaciones:
    ```bash
+   npm run lint
+   npm run format:check
    npm run typecheck
    npm test
    ```
@@ -41,6 +47,8 @@ Gracias por tu interés. El proyecto es un planificador local de un solo usuario
 3. Mantén cada propuesta centrada en un solo cambio y añade o actualiza sus pruebas.
 4. Actualiza el README cuando cambie algo que el usuario ve, en inglés y en español.
 5. Nunca subas `.env`, volcados de base de datos, copias de seguridad ni datos personales. Revisa los cambios preparados por si contienen secretos antes de subirlos, por ejemplo con `gitleaks protect --staged`.
+
+ESLint comprueba la sintaxis y errores comunes en JavaScript y TypeScript. El análisis de TypeScript no detecta nombres no definidos o sin usar; `typecheck` los comprueba en la aplicación, pero no cubre todos los scripts ni las pruebas E2E. Prettier excluye las migraciones existentes. Ejecuta `npm run format` para aplicar formato a los demás archivos.
 
 ## Mensajes de commit
 

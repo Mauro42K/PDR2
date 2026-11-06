@@ -9,7 +9,8 @@ const reales = new Map();
 export async function resolve(specifier, context, nextResolve) {
   // El envoltorio importa el módulo real: esa importación no debe volver a pasar por el gancho (sería un bucle).
   if (context.parentURL?.startsWith('espia:')) return nextResolve(specifier, context);
-  if (!VIGILADOS.has(specifier) || !process.env.PDR2_ESPIA_LOG) return nextResolve(specifier, context);
+  if (!VIGILADOS.has(specifier) || !process.env.PDR2_ESPIA_LOG)
+    return nextResolve(specifier, context);
   const real = await nextResolve(specifier, context);
   const id = `espia:${specifier}`;
   reales.set(id, real.url);
@@ -28,10 +29,12 @@ export async function load(url, context, nextLoad) {
   const reexportaDefault = tieneDefault
     ? `import realDefault from ${JSON.stringify(realUrl)};\nexport default { ...realDefault, spawn: (...args) => { anotar("proceso-hijo"); return realDefault.spawn(...args); } };\n`
     : '';
-  const registro = 'import { appendFileSync } from "node:fs";\nconst anotar = (nombre) => appendFileSync(process.env.PDR2_ESPIA_LOG, nombre + "\\n");\n';
-  const cuerpo = nombre === 'node-pg-migrate'
-    ? `export const runner = (...args) => { anotar("migrador"); return real.runner(...args); };\n`
-    : `export const spawn = (...args) => { anotar("proceso-hijo"); return real.spawn(...args); };\n`;
+  const registro =
+    'import { appendFileSync } from "node:fs";\nconst anotar = (nombre) => appendFileSync(process.env.PDR2_ESPIA_LOG, nombre + "\\n");\n';
+  const cuerpo =
+    nombre === 'node-pg-migrate'
+      ? `export const runner = (...args) => { anotar("migrador"); return real.runner(...args); };\n`
+      : `export const spawn = (...args) => { anotar("proceso-hijo"); return real.spawn(...args); };\n`;
   const fuente = `${registro}import * as real from ${JSON.stringify(realUrl)};\nexport * from ${JSON.stringify(realUrl)};\n${reexportaDefault}${cuerpo}`;
   return { format: 'module', shortCircuit: true, source: fuente };
 }

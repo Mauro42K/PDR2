@@ -31,42 +31,75 @@ export function SummaryView({ project, today, locale }: Props) {
   const ungrouped = project.tasks.filter((task) => !task.groupId);
   const milestones = project.tasks.filter((task) => task.isMilestone);
   const counts = alertCounts(project.tasks, today);
-  const label: Record<Semaphore, string> = { onTrack: t.semaphoreOnTrack, atRisk: t.semaphoreAtRisk, offTrack: t.semaphoreOffTrack, empty: t.summaryEmpty };
-  const alertLabel: Record<CalendarAlert, string> = { overdue: t.alertOverdue, late_start: t.alertLateStart, due_soon: t.alertDueSoon };
+  const label: Record<Semaphore, string> = {
+    onTrack: t.semaphoreOnTrack,
+    atRisk: t.semaphoreAtRisk,
+    offTrack: t.semaphoreOffTrack,
+    empty: t.summaryEmpty,
+  };
+  const alertLabel: Record<CalendarAlert, string> = {
+    overdue: t.alertOverdue,
+    late_start: t.alertLateStart,
+    due_soon: t.alertDueSoon,
+  };
 
-  return <section className="summary-view" aria-label={t.viewSummary}>
-    <p className="summary-readonly">{t.summaryReadOnly}</p>
-    <ul className="summary-counters" aria-label={t.viewSummary}>
-      {(Object.keys(counts) as CalendarAlert[]).map((alert) => <li key={alert} className={`alert-chip alert-${alert}`}><span>{alertLabel[alert]}</span><b>{counts[alert]}</b></li>)}
-    </ul>
-    <h2 className="summary-heading">{t.summaryGroups}</h2>
-    <ul className="summary-groups">
-      {groups.map((group) => {
-        const tasks = project.tasks.filter((task) => task.groupId === group.id);
-        const summary = groupSummary(tasks);
-        const status = semaphore(tasks, today);
-        return <li key={group.id} className={`summary-group semaphore-${status}`}>
-          <span className="summary-group-name">{group.name}</span>
-          <span className="summary-group-meta">{summary ? `${summary.startDate} → ${summary.endDate}` : t.summaryEmpty}</span>
-          {summary && <span className="summary-progress" role="img" aria-label={`${summary.progress} %`}><span style={{ width: `${summary.progress}%` }} /></span>}
-          <span className="summary-semaphore">{label[status]}</span>
-        </li>;
-      })}
-      {ungrouped.length > 0 && <li className="summary-group summary-ungrouped"><span className="summary-group-name">{t.summaryUngrouped}</span><span className="summary-group-meta">{ungrouped.length}</span></li>}
-    </ul>
-    <h2 className="summary-heading">{t.summaryMilestones}</h2>
-    <ul className="summary-milestones">
-      {milestones.length === 0 && <li className="summary-empty">{t.summaryEmpty}</li>}
-      {milestones.map((task) => {
-        const alert = calendarAlert(task, today);
-        return <li key={task.id} className="summary-milestone">
-          <span className="milestone-symbol" aria-hidden="true">◆</span>
-          <span className="summary-milestone-name">{task.name}</span>
-          <span className="summary-group-meta">{task.startDate}</span>
-          <span>{task.status === 'completed' ? t.milestoneDone : t.statusPending}</span>
-          {alert && <span className={`alert-chip alert-${alert}`}>{alertLabel[alert]}</span>}
-        </li>;
-      })}
-    </ul>
-  </section>;
+  return (
+    <section className="summary-view" aria-label={t.viewSummary}>
+      <p className="summary-readonly">{t.summaryReadOnly}</p>
+      <ul className="summary-counters" aria-label={t.viewSummary}>
+        {(Object.keys(counts) as CalendarAlert[]).map((alert) => (
+          <li key={alert} className={`alert-chip alert-${alert}`}>
+            <span>{alertLabel[alert]}</span>
+            <b>{counts[alert]}</b>
+          </li>
+        ))}
+      </ul>
+      <h2 className="summary-heading">{t.summaryGroups}</h2>
+      <ul className="summary-groups">
+        {groups.map((group) => {
+          const tasks = project.tasks.filter((task) => task.groupId === group.id);
+          const summary = groupSummary(tasks);
+          const status = semaphore(tasks, today);
+          return (
+            <li key={group.id} className={`summary-group semaphore-${status}`}>
+              <span className="summary-group-name">{group.name}</span>
+              <span className="summary-group-meta">
+                {summary ? `${summary.startDate} → ${summary.endDate}` : t.summaryEmpty}
+              </span>
+              {summary && (
+                <span className="summary-progress" role="img" aria-label={`${summary.progress} %`}>
+                  <span style={{ width: `${summary.progress}%` }} />
+                </span>
+              )}
+              <span className="summary-semaphore">{label[status]}</span>
+            </li>
+          );
+        })}
+        {ungrouped.length > 0 && (
+          <li className="summary-group summary-ungrouped">
+            <span className="summary-group-name">{t.summaryUngrouped}</span>
+            <span className="summary-group-meta">{ungrouped.length}</span>
+          </li>
+        )}
+      </ul>
+      <h2 className="summary-heading">{t.summaryMilestones}</h2>
+      <ul className="summary-milestones">
+        {milestones.length === 0 && <li className="summary-empty">{t.summaryEmpty}</li>}
+        {milestones.map((task) => {
+          const alert = calendarAlert(task, today);
+          return (
+            <li key={task.id} className="summary-milestone">
+              <span className="milestone-symbol" aria-hidden="true">
+                ◆
+              </span>
+              <span className="summary-milestone-name">{task.name}</span>
+              <span className="summary-group-meta">{task.startDate}</span>
+              <span>{task.status === 'completed' ? t.milestoneDone : t.statusPending}</span>
+              {alert && <span className={`alert-chip alert-${alert}`}>{alertLabel[alert]}</span>}
+            </li>
+          );
+        })}
+      </ul>
+    </section>
+  );
 }

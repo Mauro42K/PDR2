@@ -23,13 +23,16 @@ describe('peticiones externas (CON-14)', () => {
     const archivos = [...archivosFuente(join(RAIZ, 'src')), join(RAIZ, 'index.html')];
     const hallazgos: string[] = [];
     for (const archivo of archivos) {
-      readFileSync(archivo, 'utf8').split('\n').forEach((linea, indice) => {
-        for (const literal of linea.match(LITERAL) ?? []) {
-          // El host es lo que va entre `://` y el primer `/`, `:` o `$`. Así funciona con plantillas como `localhost:${port}`.
-          const host = literal.replace(/^https?:\/\//, '').split(/[/:$]/)[0];
-          if (!HOSTS_PERMITIDOS.has(host)) hallazgos.push(`${relative(RAIZ, archivo)}:${indice + 1} → ${literal}`);
-        }
-      });
+      readFileSync(archivo, 'utf8')
+        .split('\n')
+        .forEach((linea, indice) => {
+          for (const literal of linea.match(LITERAL) ?? []) {
+            // El host es lo que va entre `://` y el primer `/`, `:` o `$`. Así funciona con plantillas como `localhost:${port}`.
+            const host = literal.replace(/^https?:\/\//, '').split(/[/:$]/)[0];
+            if (!HOSTS_PERMITIDOS.has(host))
+              hallazgos.push(`${relative(RAIZ, archivo)}:${indice + 1} → ${literal}`);
+          }
+        });
     }
     expect(hallazgos).toEqual([]);
   });

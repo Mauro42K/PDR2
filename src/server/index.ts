@@ -1,7 +1,11 @@
 import { resolve } from 'node:path';
 import { buildApp } from './app.js';
 
-try { process.loadEnvFile('.env'); } catch { /* Environment variables may be supplied by the shell. */ }
+try {
+  process.loadEnvFile('.env');
+} catch {
+  /* Environment variables may be supplied by the shell. */
+}
 const port = Number(process.env.PORT ?? 3001);
 const host = process.env.HOST ?? '127.0.0.1';
 const webRoot = resolve('dist');

@@ -29,7 +29,8 @@ export function verificarDestino(cadena: string): VeredictoDestino {
   const identidadExacta = USUARIOS.has(url.username) && url.search === '' && url.hash === '';
 
   if (!protocoloValido || !destinoExacto) return rechazo(encontrado);
-  if (!identidadExacta) return rechazo(encontrado, 'se requiere pdr2 o pdr2_qa, sin parámetros ni fragmento');
+  if (!identidadExacta)
+    return rechazo(encontrado, 'se requiere pdr2 o pdr2_qa, sin parámetros ni fragmento');
 
   return { tipo: 'permitido', destino: { url: cadena, host: HOST, puerto: PUERTO, base: BASE } };
 }
@@ -42,6 +43,6 @@ function rechazo(encontrado: string, motivo?: string): VeredictoDestino {
     encontrado,
     mensaje:
       `Destino de pruebas rechazado. Esperado: ${ESPERADO}. Encontrado: ${encontrado}.${detalle} ` +
-      'Las pruebas solo se ejecutan contra la base de pruebas en esta máquina.'
+      'Las pruebas solo se ejecutan contra la base de pruebas en esta máquina.',
   };
 }

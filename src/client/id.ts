@@ -11,7 +11,8 @@ export function createId(): string {
     globalThis.crypto.getRandomValues(bytes);
   } else {
     // These identifiers are record keys, not credentials or security tokens.
-    for (let index = 0; index < bytes.length; index++) bytes[index] = Math.floor(Math.random() * 256);
+    for (let index = 0; index < bytes.length; index++)
+      bytes[index] = Math.floor(Math.random() * 256);
   }
 
   bytes[6] = (bytes[6] & 0x0f) | 0x40;
