@@ -6,6 +6,8 @@ test-results
 playwright-report
 coverage
 package-lock.json
+AGENTS.md
+CLAUDE.md
 02-DOCS
 01-TOOLS
 .rsc
