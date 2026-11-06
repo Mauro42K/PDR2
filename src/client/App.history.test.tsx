@@ -19,6 +19,16 @@ beforeEach(() => {
   HTMLDialogElement.prototype.close = function () { this.removeAttribute('open'); };
 });
 async function open() { render(<App />); await screen.findByDisplayValue('Tarea A'); }
+async function moveFirstGroup() {
+  const trigger = screen.getByLabelText('Opciones del grupo: Uno');
+  fireEvent.click(trigger);
+  const menu = trigger.closest('details')!;
+  const move = await within(menu).findByRole('button', { name: 'Bajar grupo' });
+  expect(move).toBeEnabled();
+  fireEvent.click(move);
+  await waitFor(() => expect(api.saveProjectState).toHaveBeenCalledOnce());
+}
+
 describe('F2 historial de sesión', () => {
   it('advierte antes de guardar una predecesora con fechas solapadas y permite rechazarla', async () => {
     const overlapping = structuredClone(initial);
@@ -55,7 +65,7 @@ describe('F2 historial de sesión', () => {
   });
   it('no avanza historial si undo falla y permite reintentar y rehacer', async () => {
     await open();
-    fireEvent.click(screen.getByLabelText('Opciones del grupo: Uno')); fireEvent.click(screen.getAllByRole('button',{name:'Bajar grupo'})[0]);
+    await moveFirstGroup();
     const undo = screen.getByRole('button',{name:'Deshacer'}); const redo = screen.getByRole('button',{name:'Rehacer'});
     await waitFor(() => expect(undo).toBeEnabled());
     vi.mocked(api.saveProjectState).mockRejectedValueOnce(new TypeError('Failed to fetch'));
@@ -72,14 +82,15 @@ describe('F2 historial de sesión', () => {
   });
   it('conserva un borrador rechazado durante otro guardado y permite reintentarlo', async () => {
     await open();
-    let resolve!: (p: Project) => void;
-    vi.mocked(api.saveProjectState).mockImplementationOnce(p => new Promise(done => { resolve = () => done(structuredClone(p)); }));
-    fireEvent.click(screen.getByLabelText('Opciones del grupo: Uno')); fireEvent.click(screen.getAllByRole('button',{name:'Bajar grupo'})[0]);
+    let finishSave!: () => void;
+    vi.mocked(api.saveProjectState).mockImplementationOnce(p => new Promise(done => { finishSave = () => done(structuredClone(p)); }));
+    await moveFirstGroup();
     const field = screen.getByDisplayValue('Tarea A');
     fireEvent.change(field,{target:{value:'Nombre pendiente'}}); fireEvent.blur(field);
     expect(api.updateTask).not.toHaveBeenCalled();
     expect(field).toHaveValue('Nombre pendiente');
-    const pending = vi.mocked(api.saveProjectState).mock.calls[0][0]; resolve(pending);
+    const pending = vi.mocked(api.saveProjectState).mock.calls[0][0];
+    finishSave();
     await waitFor(() => expect(screen.getByRole('button',{name:'Deshacer'})).toBeEnabled());
     vi.mocked(api.updateTask).mockImplementation(async (_id,_task,input) => ({...pending,tasks:pending.tasks.map(t=>({...t,name:input.name}))}));
     fireEvent.focus(field); fireEvent.blur(field);
@@ -91,13 +102,13 @@ describe('F2 historial de sesión', () => {
     vi.mocked(api.projects).mockResolvedValue([summary(initial), summary(second)]);
     vi.mocked(api.project).mockImplementation(async id => structuredClone(id === second.id ? second : initial));
     await open();
-    let resolve!: () => void;
-    vi.mocked(api.saveProjectState).mockImplementationOnce(p => new Promise(done => { resolve = () => done(structuredClone(p)); }));
-    fireEvent.click(screen.getByLabelText('Opciones del grupo: Uno')); fireEvent.click(screen.getAllByRole('button',{name:'Bajar grupo'})[0]);
+    let finishSave!: () => void;
+    vi.mocked(api.saveProjectState).mockImplementationOnce(p => new Promise(done => { finishSave = () => done(structuredClone(p)); }));
+    await moveFirstGroup();
     fireEvent.click(screen.getByRole('button',{name:/Otro plan/}));
     expect(api.project).not.toHaveBeenCalledWith(second.id);
     expect(screen.getByText('Espera a que termine la operación.')).toBeInTheDocument();
-    resolve();
+    finishSave();
     await waitFor(() => expect(screen.getByRole('button',{name:'Deshacer'})).toBeEnabled());
     fireEvent.click(screen.getByRole('button',{name:/Otro plan/}));
     await waitFor(() => expect(api.project).toHaveBeenCalledWith(second.id));
@@ -131,7 +142,7 @@ describe('F2 historial de sesión', () => {
   });
   it('limpia historial solamente después de una importación exitosa', async () => {
     await open();
-    fireEvent.click(screen.getByLabelText('Opciones del grupo: Uno')); fireEvent.click(screen.getAllByRole('button',{name:'Bajar grupo'})[0]);
+    await moveFirstGroup();
     await waitFor(() => expect(screen.getByRole('button',{name:'Deshacer'})).toBeEnabled());
     const imported: Project = { id:'22222222-2222-4222-8222-222222222222', name:'Importado', updatedAt:initial.updatedAt, groups:[], tasks:[], dependencies:[] };
     const file = new File(['{}'], 'plan.json', {type:'application/json'});
