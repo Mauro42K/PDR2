@@ -27,7 +27,7 @@ PDR 2.0 helps you plan and follow a project as a timeline:
 
 ### Status and limitations
 
-PDR 2.0 is a release candidate for version 1.0. Open work and known limitations are tracked in the [issues](https://github.com/Mauro42K/PDR2/issues).
+PDR 2.0 is at version 1.0.0. Open work and known limitations are tracked in the [issues](https://github.com/Mauro42K/PDR2/issues).
 
 Not included yet:
 
@@ -35,7 +35,7 @@ Not included yet:
 - Export to PNG, PDF or CSV, duplicate project, saved filters.
 - User accounts, sign-in, private projects, or real-time collaboration.
 - Web deployment. The application is designed for a local network and has no authentication.
-- Touch editing of the timeline is being validated on tablets; mouse and keyboard are the reference.
+- Mouse and keyboard are the reference for timeline editing. Please report any touch issues you encounter.
 
 ### Requirements
 
@@ -129,7 +129,7 @@ PDR 2.0 ayuda a planificar y seguir un proyecto como cronograma:
 
 ### Estado y limitaciones
 
-PDR 2.0 es un candidato a la versión 1.0. El trabajo pendiente y las limitaciones conocidas se siguen en las [incidencias](https://github.com/Mauro42K/PDR2/issues).
+PDR 2.0 está en la versión 1.0.0. El trabajo pendiente y las limitaciones conocidas se siguen en las [incidencias](https://github.com/Mauro42K/PDR2/issues).
 
 Todavía no incluye:
 
@@ -137,7 +137,7 @@ Todavía no incluye:
 - Exportar a PNG, PDF o CSV, duplicar proyecto y filtros guardados.
 - Cuentas de usuario, inicio de sesión, proyectos privados ni colaboración en tiempo real.
 - Despliegue web. La aplicación está pensada para una red local y no tiene autenticación.
-- La edición táctil del cronograma se está validando en tabletas; la referencia es el ratón y el teclado.
+- El ratón y el teclado son la referencia para editar el cronograma. Si encuentras problemas táctiles, puedes comunicarlos.
 
 ### Requisitos
 
