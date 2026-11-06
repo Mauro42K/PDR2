@@ -70,7 +70,8 @@ export function App() {
   const [project, setProject] = useState<Project | null>(null);
   const [saveState, setSaveState] = useState<SaveState>('saved');
   const [error, setError] = useState('');
-  const [newProjectOpen, setNewProjectOpen] = useState(false);
+  const [projectNameMode, setProjectNameMode] = useState<'create' | 'rename' | null>(null);
+  const renameProjectLabel = locale === 'es' ? 'Renombrar proyecto' : 'Rename project';
   const [projectDrawerOpen, setProjectDrawerOpen] = useState(false);
   const [projectName, setProjectName] = useState('');
   const [taskNameDrafts, setTaskNameDrafts] = useState<Record<string, string>>({});
@@ -208,14 +209,14 @@ export function App() {
   useEffect(() => {
     const dialog = newProjectDialogRef.current;
     if (!dialog) return;
-    if (newProjectOpen && !dialog.open) {
+    if (projectNameMode && !dialog.open) {
       dialog.showModal();
       newProjectInputRef.current?.focus();
-    } else if (!newProjectOpen && dialog.open) {
+    } else if (!projectNameMode && dialog.open) {
       dialog.close();
       newProjectReturnFocusRef.current?.focus();
     }
-  }, [newProjectOpen]);
+  }, [projectNameMode]);
   useEffect(() => {
     const dialog = conflictDialogRef.current;
     if (!dialog) return;
@@ -232,7 +233,15 @@ export function App() {
     const triggerIsInDrawer = !!trigger && projectDrawerRef.current?.contains(trigger);
     newProjectReturnFocusRef.current = triggerIsInDrawer ? projectDrawerTriggerRef.current : trigger ?? null;
     if (triggerIsInDrawer) setProjectDrawerOpen(false);
-    setNewProjectOpen(true);
+    setProjectName('');
+    setProjectNameMode('create');
+  };
+  const openRenameProject = (trigger: HTMLButtonElement) => {
+    if (!project || writeLock.current || navigating.current) return;
+    newProjectReturnFocusRef.current = trigger;
+    setError('');
+    setProjectName(project.name);
+    setProjectNameMode('rename');
   };
   const openProjectDrawer = () => {
     projectDrawerTriggerRef.current?.focus();
@@ -274,6 +283,7 @@ export function App() {
     try {
       const saved = await api.saveProjectState({ ...target, id: project.id });
       projectRef.current = saved; setProject(saved);
+      setProjects((items) => items.map((item) => item.id === saved.id ? { ...item, name: saved.name, updatedAt: saved.updatedAt } : item));
       setHistory(direction === 'undo' ? { past: h.past.slice(0, -1), future: appendHistoryEntry(h.future, project) } : { past: appendHistoryEntry(h.past, project), future: h.future.slice(0, -1) });
       setSaveState('saved');
     } catch (e) { setSaveState('error'); setError(userFacingError(e, t.saveError)); }
@@ -388,11 +398,18 @@ export function App() {
     return () => { document.removeEventListener('click', closeOutside); window.removeEventListener('resize', reposition); window.removeEventListener('scroll', reposition, true); };
   }, []);
 
-  const createProject = async (event: FormEvent) => {
-    event.preventDefault(); if (!projectName.trim()) return;
+  const submitProjectName = async (event: FormEvent) => {
+    event.preventDefault();
+    const name = projectName.trim();
+    if (!name || !projectNameMode) return;
+    if (projectNameMode === 'rename') {
+      if (!project || name === project.name) return;
+      if (await updateProject(() => api.renameProject(project.id, name))) setProjectNameMode(null);
+      return;
+    }
     if (writeLock.current || navigating.current) { setError(locale === 'es' ? 'Espera a que termine la operación.' : 'Wait for the operation to finish.'); return; }
     writeLock.current = true; ++navigationVersion.current;
-    try { const created = await api.createProject(projectName.trim()); setProjectName(''); setNewProjectOpen(false); setHistory({ past: [], future: [] }); await refreshProjects(created.id); }
+    try { const created = await api.createProject(name); setProjectName(''); setProjectNameMode(null); setHistory({ past: [], future: [] }); await refreshProjects(created.id); }
     catch (e) { setError(userFacingError(e, t.error)); }
     finally { writeLock.current = false; }
   };
@@ -605,7 +622,7 @@ export function App() {
 
       <main className="main-content">
         {project ? <>
-          <div className="project-header"><div><div className="breadcrumb">{t.projects}<span>/</span><b>{projectLabel}</b></div><div className="title-row"><h1>{project.name}</h1><span className="project-status"><i />{locale === 'es' ? 'En planificación' : 'Planning'}</span></div><p className="subtitle">{locale === 'es' ? 'Cronograma de trabajo' : 'Project schedule'} <span>·</span> {project.tasks.length} {t.tasks.toLowerCase()}</p></div><div className="project-actions"><button className="secondary-button" data-tip={locale === 'es' ? 'Importar un archivo JSON como proyecto' : 'Import a JSON file as a project'} onClick={() => fileInput.current?.click()}><Icon name="upload" />{t.import}</button><button className="secondary-button" data-tip={locale === 'es' ? 'Descargar el proyecto como archivo JSON' : 'Download the project as a JSON file'} onClick={() => void exportProject()}><Icon name="download" />{t.export}</button><button ref={deleteProjectTriggerRef} className="more-button" data-tip={t.deleteProject} aria-label={t.deleteProject} onClick={(event) => openDeleteProject(event.currentTarget)}><Icon name="trash" /></button><input ref={fileInput} type="file" accept="application/json,.json" hidden onChange={chooseFile} /></div></div>
+          <div className="project-header"><div><div className="breadcrumb">{t.projects}<span>/</span><b>{projectLabel}</b></div><div className="title-row"><h1>{project.name}</h1><span className="project-status"><i />{locale === 'es' ? 'En planificación' : 'Planning'}</span></div><p className="subtitle">{locale === 'es' ? 'Cronograma de trabajo' : 'Project schedule'} <span>·</span> {project.tasks.length} {t.tasks.toLowerCase()}</p></div><div className="project-actions"><button type="button" className="secondary-button" disabled={saveState === 'saving'} onClick={(event) => openRenameProject(event.currentTarget)}>{renameProjectLabel}</button><button className="secondary-button" data-tip={locale === 'es' ? 'Importar un archivo JSON como proyecto' : 'Import a JSON file as a project'} onClick={() => fileInput.current?.click()}><Icon name="upload" />{t.import}</button><button className="secondary-button" data-tip={locale === 'es' ? 'Descargar el proyecto como archivo JSON' : 'Download the project as a JSON file'} onClick={() => void exportProject()}><Icon name="download" />{t.export}</button><button ref={deleteProjectTriggerRef} className="more-button" data-tip={t.deleteProject} aria-label={t.deleteProject} onClick={(event) => openDeleteProject(event.currentTarget)}><Icon name="trash" /></button><input ref={fileInput} type="file" accept="application/json,.json" hidden onChange={chooseFile} /></div></div>
 
           <section className="editor-card" aria-label={t.tasks} style={{ '--name-col': effectiveNameWidth === null ? `min(calc(${nameChars} * 7px + 44px), 36vw)` : `${effectiveNameWidth}px`, '--row-h': density === 'compact' && !coarsePointer ? '34px' : '46px' } as React.CSSProperties}>
             <div className="card-toolbar"><div className="view-tabs" role="tablist" aria-label={locale === 'es' ? 'Vista del proyecto' : 'Project view'}>{(["planning", "tracking", "summary"] as ViewMode[]).map((mode) => <button key={mode} type="button" role="tab" aria-selected={view === mode} className={`view-tab${view === mode ? ' active' : ''}`} onClick={() => setView(mode)}>{mode === 'planning' ? t.viewPlanning : mode === 'tracking' ? t.viewTracking : t.viewSummary}</button>)}<span className="toolbar-divider" /><label className="toolbar-select"><span>{t.zoomLabel}</span><select value={zoom} onChange={(event) => setZoom(event.target.value as ZoomMode)}><option value="20">20 px</option><option value="34">34 px</option><option value="50">50 px</option><option value="fit">{t.zoomFit}</option></select></label><label className="toolbar-select"><span>{t.densityLabel}</span><select value={density} onChange={(event) => setDensity(event.target.value as DensityMode)}><option value="comfortable">{t.densityComfortable}</option><option value="compact">{t.densityCompact}</option></select></label></div><div className="toolbar-right"><button className="secondary-button toolbar-icon-button" disabled={!history.past.length} onClick={() => void restoreHistory('undo')} aria-label={locale === 'es' ? 'Deshacer' : 'Undo'} data-tip={locale === 'es' ? 'Deshacer el último cambio' : 'Undo the last change'}><svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M9 14 4 9l5-5" /><path d="M4 9h10.5a5.5 5.5 0 0 1 0 11H11" /></svg></button><button className="secondary-button toolbar-icon-button" disabled={!history.future.length} onClick={() => void restoreHistory('redo')} aria-label={locale === 'es' ? 'Rehacer' : 'Redo'} data-tip={locale === 'es' ? 'Rehacer el cambio deshecho' : 'Redo the undone change'}><svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="m15 14 5-5-5-5" /><path d="M20 9H9.5a5.5 5.5 0 0 0 0 11H13" /></svg></button><button className="secondary-button" data-tip={locale === 'es' ? 'Agregar un grupo para organizar tareas' : 'Add a group to organize tasks'} onClick={() => openGroupDialog('create')}>{locale === 'es' ? '+ Grupo' : '+ Group'}</button><button className="primary-button" data-tip={locale === 'es' ? 'Agregar una tarea al proyecto' : 'Add a task to the project'} onClick={(event) => openTaskDialog(undefined, event.currentTarget)}>{locale === 'es' ? '+ Tarea' : '+ Task'}</button><span className="calendar-status">{locale === 'es' ? 'Días calendario' : 'Calendar days'}</span></div></div>
@@ -668,7 +685,7 @@ export function App() {
         <footer className="page-footer"><span>© {new Date().getFullYear()} PDR 2.0</span><span>{t.noInternet}</span><span>{locale === 'es' ? 'Días calendario · Guardado automático' : 'Calendar days · Autosave'}</span></footer>
       </main>
     </div>
-    {error && <div role="alert" className="toast-error"><span>!</span>{error}<button aria-label={t.close} onClick={() => setError('')}>×</button></div>}
+    {error && projectNameMode !== 'rename' && <div role="alert" className="toast-error"><span>!</span>{error}<button aria-label={t.close} onClick={() => setError('')}>×</button></div>}
 
     <dialog ref={deleteProjectDialogRef} role="alertdialog" aria-modal="true" aria-labelledby="delete-project-heading" aria-describedby="delete-project-description" className="modal action-dialog delete-project-dialog" onKeyDown={containModalTab} onCancel={(event) => { event.preventDefault(); closeDeleteProject(); }}>
       <div className="modal-heading"><h2 id="delete-project-heading">{locale === 'es' ? 'Eliminar proyecto' : 'Delete project'}</h2><button type="button" className="modal-close" aria-label={t.close} disabled={deletingProject} onClick={closeDeleteProject}>×</button></div>
@@ -698,8 +715,24 @@ export function App() {
       </nav>
       <div className="sidebar-footer"><span className="connection-dot" /><span>PostgreSQL local</span></div>
     </dialog>
-    <dialog ref={newProjectDialogRef} className="modal project-dialog" aria-labelledby="new-project-heading" onKeyDown={containModalTab} onCancel={(event) => { event.preventDefault(); setNewProjectOpen(false); }}>
-      <form onSubmit={(event) => void createProject(event)}><div className="modal-heading"><h2 id="new-project-heading">{t.newProject}</h2><button type="button" className="modal-close" aria-label={t.close} onClick={() => setNewProjectOpen(false)}>×</button></div><label className="modal-field">{t.projectName}<input ref={newProjectInputRef} value={projectName} onChange={(event) => setProjectName(event.target.value)} maxLength={160} /></label><div className="modal-actions"><button type="button" className="secondary-button" onClick={() => setNewProjectOpen(false)}>{t.cancel}</button><button className="primary-button" disabled={!projectName.trim()}>{t.create} <span>→</span></button></div></form>
+    <dialog ref={newProjectDialogRef} className="modal project-dialog" aria-labelledby="project-name-heading" onKeyDown={containModalTab} onCancel={(event) => { event.preventDefault(); if (saveState !== 'saving') setProjectNameMode(null); }}>
+      <form onSubmit={(event) => void submitProjectName(event)}>
+        <div className="modal-heading">
+          <h2 id="project-name-heading">{projectNameMode === 'rename' ? renameProjectLabel : t.newProject}</h2>
+          <button type="button" className="modal-close" aria-label={t.close} disabled={saveState === 'saving'} onClick={() => setProjectNameMode(null)}>×</button>
+        </div>
+        <label className="modal-field">
+          {t.projectName}
+          <input ref={newProjectInputRef} value={projectName} onChange={(event) => setProjectName(event.target.value)} maxLength={160} readOnly={saveState === 'saving'} />
+        </label>
+        {projectNameMode === 'rename' && error && <p role="alert" className="note-error">{error}</p>}
+        <div className="modal-actions">
+          <button type="button" className="secondary-button" disabled={saveState === 'saving'} onClick={() => setProjectNameMode(null)}>{t.cancel}</button>
+          <button className="primary-button" disabled={saveState === 'saving' || !projectName.trim() || (projectNameMode === 'rename' && projectName.trim() === project?.name)}>
+            {projectNameMode === 'rename' ? (locale === 'es' ? 'Guardar' : 'Save') : <>{t.create} <span>→</span></>}
+          </button>
+        </div>
+      </form>
     </dialog>
     <dialog ref={conflictDialogRef} role="alertdialog" aria-modal="true" aria-labelledby="conflict-heading" aria-describedby="conflict-description" className="modal conflict-modal" onKeyDown={containModalTab} onCancel={(event) => { event.preventDefault(); rejectConflict(); }}>
       {conflict && <>
