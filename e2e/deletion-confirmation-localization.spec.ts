@@ -7,12 +7,23 @@ async function switchToEnglish(page: Page) {
   await settings.getByRole('button', { name: 'Close' }).click();
 }
 
-test('uses DELETE for the written project confirmation in English on a touch viewport', async ({ browser }) => {
+test('uses DELETE for the written project confirmation in English on a touch viewport', async ({
+  browser,
+}) => {
   const name = `Project English delete QA ${Date.now()}`;
   const baseURL = process.env.PLAYWRIGHT_BASE_URL!;
-  const response = await fetch(`${baseURL}/api/projects`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ name }) });
-  const project = await response.json() as { id: string; name: string };
-  const context = await browser.newContext({ viewport: { width: 1024, height: 768 }, isMobile: true, hasTouch: true, baseURL });
+  const response = await fetch(`${baseURL}/api/projects`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ name }),
+  });
+  const project = (await response.json()) as { id: string; name: string };
+  const context = await browser.newContext({
+    viewport: { width: 1024, height: 768 },
+    isMobile: true,
+    hasTouch: true,
+    baseURL,
+  });
   let visibleProjects = [{ ...project, updatedAt: new Date().toISOString() }];
   try {
     await context.route('**/api/projects**', async (route) => {
@@ -44,7 +55,9 @@ test('uses DELETE for the written project confirmation in English on a touch vie
     await finalDelete.click();
     await expect(dialog).toBeHidden();
     expect((await page.request.get(`/api/projects/${project.id}`)).status()).toBe(404);
-    await expect(page.getByRole('heading', { name: 'Create your first project to start planning.' })).toBeVisible();
+    await expect(
+      page.getByRole('heading', { name: 'Create your first project to start planning.' }),
+    ).toBeVisible();
   } finally {
     await context.close();
     const stillExists = await fetch(`${baseURL}/api/projects/${project.id}`);
@@ -55,17 +68,24 @@ test('uses DELETE for the written project confirmation in English on a touch vie
 test('uses DELETE for written group confirmation in English', async ({ page }) => {
   const name = `Group English delete QA ${Date.now()}`;
   const created = await page.request.post('/api/projects', { data: { name } });
-  const project = await created.json() as { id: string; name: string };
+  const project = (await created.json()) as { id: string; name: string };
   const groupId = crypto.randomUUID();
   try {
-    const initial = await (await page.request.get(`/api/projects/${project.id}`)).json() as Record<string, unknown>;
-    await page.request.put(`/api/projects/${project.id}/state`, { data: {
-      ...initial,
-      groups: [{ id: groupId, name: 'Delivery', position: 0, note: '' }],
-    } });
-    await page.route('**/api/projects**', (route) => route.request().method() === 'GET' && new URL(route.request().url()).pathname === '/api/projects'
-      ? route.fulfill({ json: [{ id: project.id, name, updatedAt: new Date().toISOString() }] })
-      : route.continue());
+    const initial = (await (
+      await page.request.get(`/api/projects/${project.id}`)
+    ).json()) as Record<string, unknown>;
+    await page.request.put(`/api/projects/${project.id}/state`, {
+      data: {
+        ...initial,
+        groups: [{ id: groupId, name: 'Delivery', position: 0, note: '' }],
+      },
+    });
+    await page.route('**/api/projects**', (route) =>
+      route.request().method() === 'GET' &&
+      new URL(route.request().url()).pathname === '/api/projects'
+        ? route.fulfill({ json: [{ id: project.id, name, updatedAt: new Date().toISOString() }] })
+        : route.continue(),
+    );
     await page.goto('/');
     await switchToEnglish(page);
     const menu = page.locator('.group-menu');
@@ -81,32 +101,70 @@ test('uses DELETE for written group confirmation in English', async ({ page }) =
     await expect(finalDelete).toBeEnabled();
     await finalDelete.click();
     await expect(page.locator('.save-status')).toHaveText('Saved');
-    const stored = await (await page.request.get(`/api/projects/${project.id}`)).json() as { groups: unknown[] };
+    const stored = (await (await page.request.get(`/api/projects/${project.id}`)).json()) as {
+      groups: unknown[];
+    };
     expect(stored.groups).toHaveLength(0);
   } finally {
     await page.request.delete(`/api/projects/${project.id}`);
   }
 });
 
-test('requires the localized written confirmation before deleting a task and its dependencies', async ({ page }) => {
+test('requires the localized written confirmation before deleting a task and its dependencies', async ({
+  page,
+}) => {
   const name = `Task delete localization QA ${Date.now()}`;
-  const project = await (await page.request.post('/api/projects', { data: { name } })).json() as { id: string; name: string };
+  const project = (await (await page.request.post('/api/projects', { data: { name } })).json()) as {
+    id: string;
+    name: string;
+  };
   const predecessorId = crypto.randomUUID();
   const successorId = crypto.randomUUID();
   try {
-    const initial = await (await page.request.get(`/api/projects/${project.id}`)).json() as Record<string, unknown>;
-    const seeded = await page.request.put(`/api/projects/${project.id}/state`, { data: {
-      ...initial,
-      tasks: [
-        { id: predecessorId, name: 'Prepare brief', startDate: '2026-10-29', endDate: '2026-10-30', position: 0, number: 1, status: 'pending', progress: 0, isMilestone: false, groupId: null, note: '' },
-        { id: successorId, name: 'Review brief', startDate: '2026-10-31', endDate: '2026-11-01', position: 1, number: 2, status: 'pending', progress: 0, isMilestone: false, groupId: null, note: '' },
-      ],
-      dependencies: [{ id: crypto.randomUUID(), predecessorId, successorId }],
-    } });
+    const initial = (await (
+      await page.request.get(`/api/projects/${project.id}`)
+    ).json()) as Record<string, unknown>;
+    const seeded = await page.request.put(`/api/projects/${project.id}/state`, {
+      data: {
+        ...initial,
+        tasks: [
+          {
+            id: predecessorId,
+            name: 'Prepare brief',
+            startDate: '2026-10-29',
+            endDate: '2026-10-30',
+            position: 0,
+            number: 1,
+            status: 'pending',
+            progress: 0,
+            isMilestone: false,
+            groupId: null,
+            note: '',
+          },
+          {
+            id: successorId,
+            name: 'Review brief',
+            startDate: '2026-10-31',
+            endDate: '2026-11-01',
+            position: 1,
+            number: 2,
+            status: 'pending',
+            progress: 0,
+            isMilestone: false,
+            groupId: null,
+            note: '',
+          },
+        ],
+        dependencies: [{ id: crypto.randomUUID(), predecessorId, successorId }],
+      },
+    });
     expect(seeded.ok()).toBeTruthy();
-    await page.route('**/api/projects**', (route) => route.request().method() === 'GET' && new URL(route.request().url()).pathname === '/api/projects'
-      ? route.fulfill({ json: [{ id: project.id, name, updatedAt: new Date().toISOString() }] })
-      : route.continue());
+    await page.route('**/api/projects**', (route) =>
+      route.request().method() === 'GET' &&
+      new URL(route.request().url()).pathname === '/api/projects'
+        ? route.fulfill({ json: [{ id: project.id, name, updatedAt: new Date().toISOString() }] })
+        : route.continue(),
+    );
     await page.goto('/');
     await switchToEnglish(page);
     const taskActions = page.getByLabel('Task actions: Prepare brief');
@@ -131,7 +189,10 @@ test('requires the localized written confirmation before deleting a task and its
     await expect(finalDelete).toBeEnabled();
     await finalDelete.click();
     await expect(dialog).toBeHidden();
-    const saved = await (await page.request.get(`/api/projects/${project.id}`)).json() as { tasks: Array<{ id: string }>; dependencies: Array<unknown> };
+    const saved = (await (await page.request.get(`/api/projects/${project.id}`)).json()) as {
+      tasks: Array<{ id: string }>;
+      dependencies: Array<unknown>;
+    };
     expect(saved.tasks.map((task) => task.id)).toEqual([successorId]);
     expect(saved.dependencies).toHaveLength(0);
   } finally {
@@ -139,28 +200,64 @@ test('requires the localized written confirmation before deleting a task and its
   }
 });
 
-test('requires BORRAR and keeps task deletion controls usable on a touch viewport', async ({ browser }) => {
+test('requires BORRAR and keeps task deletion controls usable on a touch viewport', async ({
+  browser,
+}) => {
   const name = `Task delete tablet QA ${Date.now()}`;
   const baseURL = process.env.PLAYWRIGHT_BASE_URL!;
-  const project = await (await fetch(`${baseURL}/api/projects`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ name }) })).json() as { id: string; name: string };
+  const project = (await (
+    await fetch(`${baseURL}/api/projects`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ name }),
+    })
+  ).json()) as { id: string; name: string };
   const taskId = crypto.randomUUID();
-  const context = await browser.newContext({ viewport: { width: 1024, height: 768 }, isMobile: true, hasTouch: true, baseURL });
+  const context = await browser.newContext({
+    viewport: { width: 1024, height: 768 },
+    isMobile: true,
+    hasTouch: true,
+    baseURL,
+  });
   try {
-    const initial = await (await fetch(`${baseURL}/api/projects/${project.id}`)).json() as Record<string, unknown>;
-    const seeded = await fetch(`${baseURL}/api/projects/${project.id}/state`, { method: 'PUT', headers: { 'content-type': 'application/json' }, body: JSON.stringify({
-      ...initial,
-      tasks: [{ id: taskId, name: 'Preparar entrega', startDate: '2026-10-29', endDate: '2026-10-30', position: 0, number: 1, status: 'pending', progress: 0, isMilestone: false, groupId: null, note: '' }],
-      dependencies: [],
-    }) });
+    const initial = (await (await fetch(`${baseURL}/api/projects/${project.id}`)).json()) as Record<
+      string,
+      unknown
+    >;
+    const seeded = await fetch(`${baseURL}/api/projects/${project.id}/state`, {
+      method: 'PUT',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({
+        ...initial,
+        tasks: [
+          {
+            id: taskId,
+            name: 'Preparar entrega',
+            startDate: '2026-10-29',
+            endDate: '2026-10-30',
+            position: 0,
+            number: 1,
+            status: 'pending',
+            progress: 0,
+            isMilestone: false,
+            groupId: null,
+            note: '',
+          },
+        ],
+        dependencies: [],
+      }),
+    });
     expect(seeded.ok).toBeTruthy();
     let visibleProjects = [{ ...project, updatedAt: new Date().toISOString() }];
     await context.route('**/api/projects**', async (route) => {
       const request = route.request();
       const path = new URL(request.url()).pathname;
-      if (path === '/api/projects' && request.method() === 'GET') await route.fulfill({ json: visibleProjects });
+      if (path === '/api/projects' && request.method() === 'GET')
+        await route.fulfill({ json: visibleProjects });
       else if (path === `/api/projects/${project.id}` && request.method() === 'DELETE') {
         const response = await route.fetch();
-        if (response.ok()) visibleProjects = visibleProjects.filter((item) => item.id !== project.id);
+        if (response.ok())
+          visibleProjects = visibleProjects.filter((item) => item.id !== project.id);
         await route.fulfill({ response });
       } else await route.continue();
     });
@@ -170,14 +267,23 @@ test('requires BORRAR and keeps task deletion controls usable on a touch viewpor
     const triggerBounds = await taskActions.boundingBox();
     expect(triggerBounds!.width).toBeGreaterThanOrEqual(44);
     expect(triggerBounds!.height).toBeGreaterThanOrEqual(44);
-    await page.touchscreen.tap(triggerBounds!.x + triggerBounds!.width / 2, triggerBounds!.y + triggerBounds!.height / 2);
-    await page.locator('.task-actions[open]').getByRole('button', { name: 'Eliminar tarea' }).click();
+    await page.touchscreen.tap(
+      triggerBounds!.x + triggerBounds!.width / 2,
+      triggerBounds!.y + triggerBounds!.height / 2,
+    );
+    await page
+      .locator('.task-actions[open]')
+      .getByRole('button', { name: 'Eliminar tarea' })
+      .click();
     const dialog = page.getByRole('dialog', { name: 'Eliminar tarea' });
     const firstStep = dialog.getByRole('button', { name: 'Continuar' });
     const firstStepBounds = await firstStep.boundingBox();
     expect(firstStepBounds!.width).toBeGreaterThanOrEqual(44);
     expect(firstStepBounds!.height).toBeGreaterThanOrEqual(44);
-    await page.touchscreen.tap(firstStepBounds!.x + firstStepBounds!.width / 2, firstStepBounds!.y + firstStepBounds!.height / 2);
+    await page.touchscreen.tap(
+      firstStepBounds!.x + firstStepBounds!.width / 2,
+      firstStepBounds!.y + firstStepBounds!.height / 2,
+    );
     const confirmation = dialog.getByLabel('Escribe BORRAR para confirmar');
     await confirmation.fill('DELETE');
     const finalDelete = dialog.getByRole('button', { name: 'Eliminar tarea' });
@@ -186,10 +292,15 @@ test('requires BORRAR and keeps task deletion controls usable on a touch viewpor
     const finalBounds = await finalDelete.boundingBox();
     expect(finalBounds!.width).toBeGreaterThanOrEqual(44);
     expect(finalBounds!.height).toBeGreaterThanOrEqual(44);
-    await page.touchscreen.tap(finalBounds!.x + finalBounds!.width / 2, finalBounds!.y + finalBounds!.height / 2);
+    await page.touchscreen.tap(
+      finalBounds!.x + finalBounds!.width / 2,
+      finalBounds!.y + finalBounds!.height / 2,
+    );
     await expect(dialog).toBeHidden();
     expect((await fetch(`${baseURL}/api/projects/${project.id}`)).ok).toBeTruthy();
-    const saved = await (await fetch(`${baseURL}/api/projects/${project.id}`)).json() as { tasks: Array<{ id: string }> };
+    const saved = (await (await fetch(`${baseURL}/api/projects/${project.id}`)).json()) as {
+      tasks: Array<{ id: string }>;
+    };
     expect(saved.tasks).toHaveLength(0);
   } finally {
     await context.close();

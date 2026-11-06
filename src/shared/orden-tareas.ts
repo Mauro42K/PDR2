@@ -7,7 +7,9 @@ function scopeOf(tasks: Task[], taskId: string) {
   const target = tasks.find((item) => item.id === taskId);
   if (!target) return null;
   const key = target.groupId || null;
-  const scope = tasks.filter((item) => (item.groupId || null) === key).sort((a, b) => a.position - b.position);
+  const scope = tasks
+    .filter((item) => (item.groupId || null) === key)
+    .sort((a, b) => a.position - b.position);
   return { scope, index: scope.findIndex((item) => item.id === taskId) };
 }
 
@@ -22,7 +24,11 @@ export function canMoveTaskWithinScope(tasks: Task[], taskId: string, direction:
  * Numbers and predecessors are untouched: only the order of the scope changes. Returns null when the
  * move is not possible. Never mutates the input.
  */
-export function moveTaskWithinScope(tasks: Task[], taskId: string, direction: -1 | 1): Task[] | null {
+export function moveTaskWithinScope(
+  tasks: Task[],
+  taskId: string,
+  direction: -1 | 1,
+): Task[] | null {
   const found = scopeOf(tasks, taskId);
   if (!found) return null;
   const neighbour = found.scope[found.index + direction];
@@ -40,7 +46,10 @@ export function moveTaskWithinScope(tasks: Task[], taskId: string, direction: -1
   // Two tasks share a position (possible after an import): a plain swap would change nothing,
   // so renumber the scope consecutively in its new order and keep every other scope untouched.
   const order = [...found.scope];
-  [order[found.index], order[found.index + direction]] = [order[found.index + direction], order[found.index]];
+  [order[found.index], order[found.index + direction]] = [
+    order[found.index + direction],
+    order[found.index],
+  ];
   const base = Math.min(...found.scope.map((item) => item.position));
   order.forEach((item, offset) => {
     next.find((task) => task.id === item.id)!.position = base + offset;

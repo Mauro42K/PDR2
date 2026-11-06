@@ -2,12 +2,45 @@ import { expect, test } from '@playwright/test';
 
 test.use({ hasTouch: true });
 
-test('keeps row names stable and exposes 44px actions to mouse, keyboard and touch', async ({ page }) => {
+test('keeps row names stable and exposes 44px actions to mouse, keyboard and touch', async ({
+  page,
+}) => {
   const id = '11111111-1111-4111-8111-111111111111';
-  const group = { id: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa', name: 'Grupo de prueba', position: 0, note: 'Nota del grupo' };
-  const task = { id: 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb', name: 'Una tarea de planificación con un nombre bastante largo', startDate: '2026-01-01', endDate: '2026-01-03', position: 0, number: 1, status: 'pending', progress: 0, isMilestone: false, groupId: group.id, note: 'Nota de prueba' };
-  const project = { id, name: 'Filas aisladas', updatedAt: '2026-01-01T00:00:00Z', groups: [group], tasks: [task], dependencies: [] };
-  await page.route('**/api/projects**', (route) => route.fulfill({ json: new URL(route.request().url()).pathname === '/api/projects' ? [{ id, name: project.name, updatedAt: project.updatedAt }] : project }));
+  const group = {
+    id: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
+    name: 'Grupo de prueba',
+    position: 0,
+    note: 'Nota del grupo',
+  };
+  const task = {
+    id: 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb',
+    name: 'Una tarea de planificación con un nombre bastante largo',
+    startDate: '2026-01-01',
+    endDate: '2026-01-03',
+    position: 0,
+    number: 1,
+    status: 'pending',
+    progress: 0,
+    isMilestone: false,
+    groupId: group.id,
+    note: 'Nota de prueba',
+  };
+  const project = {
+    id,
+    name: 'Filas aisladas',
+    updatedAt: '2026-01-01T00:00:00Z',
+    groups: [group],
+    tasks: [task],
+    dependencies: [],
+  };
+  await page.route('**/api/projects**', (route) =>
+    route.fulfill({
+      json:
+        new URL(route.request().url()).pathname === '/api/projects'
+          ? [{ id, name: project.name, updatedAt: project.updatedAt }]
+          : project,
+    }),
+  );
   await page.setViewportSize({ width: 1024, height: 768 });
   await page.goto('/');
   const name = page.getByRole('textbox', { name: 'Nombre de tarea 1' });
@@ -20,7 +53,11 @@ test('keeps row names stable and exposes 44px actions to mouse, keyboard and tou
   expect(noteButtonBounds!.width).toBeGreaterThanOrEqual(44);
   expect(noteButtonBounds!.height).toBeGreaterThanOrEqual(44);
   expect(await name.evaluate((element) => getComputedStyle(element).paddingRight)).toBe('44px');
-  expect(await page.locator('.group-toolbar > button:first-child').evaluate((element) => getComputedStyle(element).paddingRight)).toBe('52px');
+  expect(
+    await page
+      .locator('.group-toolbar > button:first-child')
+      .evaluate((element) => getComputedStyle(element).paddingRight),
+  ).toBe('52px');
   await noteButton.tap();
   const tapNote = page.getByRole('dialog', { name: `Nota · ${task.name}` });
   await expect(tapNote).toBeVisible();
@@ -69,5 +106,7 @@ test('keeps row names stable and exposes 44px actions to mouse, keyboard and tou
   await page.reload();
   const englishTrigger = page.getByLabel(`Task actions: ${task.name}`);
   await englishTrigger.tap();
-  await expect(page.locator('.task-actions[open]').getByRole('button', { name: 'View or edit note' })).toBeVisible();
+  await expect(
+    page.locator('.task-actions[open]').getByRole('button', { name: 'View or edit note' }),
+  ).toBeVisible();
 });

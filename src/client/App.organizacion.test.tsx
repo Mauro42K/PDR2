@@ -9,19 +9,62 @@ vi.mock('./api.js', async (importOriginal) => {
   return { ...actual, api: { projects: vi.fn(), project: vi.fn(), saveProjectState: vi.fn() } };
 });
 const project: Project = {
-  id: '11111111-1111-4111-8111-111111111111', name: 'Proyecto', updatedAt: '2026-10-28T00:00:00Z',
-  groups: [{ id: 'g1', name: 'Primero', position: 0 }, { id: 'g2', name: 'Segundo', position: 1 }],
-  tasks: [{ id: 'a', name: 'Tarea A', startDate: '2026-10-28', endDate: '2026-10-29', position: 0, number: 1, status: 'pending' as const, progress: 0, isMilestone: false, groupId: 'g1', note: '' }, { id: 'b', name: 'Tarea B', startDate: '2026-10-30', endDate: '2026-10-31', position: 1, number: 2, status: 'pending', progress: 0, isMilestone: false, groupId: 'g2', note: '' }], dependencies: []
+  id: '11111111-1111-4111-8111-111111111111',
+  name: 'Proyecto',
+  updatedAt: '2026-10-28T00:00:00Z',
+  groups: [
+    { id: 'g1', name: 'Primero', position: 0 },
+    { id: 'g2', name: 'Segundo', position: 1 },
+  ],
+  tasks: [
+    {
+      id: 'a',
+      name: 'Tarea A',
+      startDate: '2026-10-28',
+      endDate: '2026-10-29',
+      position: 0,
+      number: 1,
+      status: 'pending' as const,
+      progress: 0,
+      isMilestone: false,
+      groupId: 'g1',
+      note: '',
+    },
+    {
+      id: 'b',
+      name: 'Tarea B',
+      startDate: '2026-10-30',
+      endDate: '2026-10-31',
+      position: 1,
+      number: 2,
+      status: 'pending',
+      progress: 0,
+      isMilestone: false,
+      groupId: 'g2',
+      note: '',
+    },
+  ],
+  dependencies: [],
 };
 beforeEach(() => {
-  localStorage.clear(); vi.clearAllMocks();
-  vi.mocked(api.projects).mockResolvedValue([{ id: project.id, name: project.name, updatedAt: project.updatedAt }]);
+  localStorage.clear();
+  vi.clearAllMocks();
+  vi.mocked(api.projects).mockResolvedValue([
+    { id: project.id, name: project.name, updatedAt: project.updatedAt },
+  ]);
   vi.mocked(api.project).mockResolvedValue(structuredClone(project));
   vi.mocked(api.saveProjectState).mockImplementation(async (value) => structuredClone(value));
-  HTMLDialogElement.prototype.showModal = function () { this.setAttribute('open', ''); };
-  HTMLDialogElement.prototype.close = function () { this.removeAttribute('open'); };
+  HTMLDialogElement.prototype.showModal = function () {
+    this.setAttribute('open', '');
+  };
+  HTMLDialogElement.prototype.close = function () {
+    this.removeAttribute('open');
+  };
 });
-async function open() { render(<App />); await screen.findByDisplayValue('Tarea A'); }
+async function open() {
+  render(<App />);
+  await screen.findByDisplayValue('Tarea A');
+}
 describe('F2 organización', () => {
   it('crea una tarea desde el menú del grupo, deja el destino explícito y agrupa el undo', async () => {
     await open();
@@ -35,8 +78,14 @@ describe('F2 organización', () => {
     await waitFor(() => expect(api.saveProjectState).toHaveBeenCalledOnce());
     const saved = vi.mocked(api.saveProjectState).mock.calls[0][0];
     expect(saved.tasks).toHaveLength(3);
-    expect(saved.tasks[2]).toMatchObject({ name: 'Nueva tarea contextual', groupId: 'g2', position: 2 });
-    await waitFor(() => expect(screen.getByDisplayValue('Nueva tarea contextual')).toBeInTheDocument());
+    expect(saved.tasks[2]).toMatchObject({
+      name: 'Nueva tarea contextual',
+      groupId: 'g2',
+      position: 2,
+    });
+    await waitFor(() =>
+      expect(screen.getByDisplayValue('Nueva tarea contextual')).toBeInTheDocument(),
+    );
     fireEvent.click(screen.getByRole('button', { name: /Deshacer/ }));
     await waitFor(() => expect(api.saveProjectState).toHaveBeenCalledTimes(2));
     expect(vi.mocked(api.saveProjectState).mock.calls[1][0].tasks).toHaveLength(2);
@@ -52,12 +101,19 @@ describe('F2 organización', () => {
     expect(screen.getByDisplayValue('Tarea B')).toBeInTheDocument();
     expect(document.querySelectorAll('.timeline-group-row')).toHaveLength(2);
     fireEvent.click(first);
-    fireEvent.click(screen.getByLabelText('Opciones del grupo: Primero')); fireEvent.click(screen.getAllByRole('button', { name: 'Bajar grupo' })[0]);
+    fireEvent.click(screen.getByLabelText('Opciones del grupo: Primero'));
+    fireEvent.click(screen.getAllByRole('button', { name: 'Bajar grupo' })[0]);
     await waitFor(() => expect(vi.mocked(api.saveProjectState)).toHaveBeenCalled());
-    expect(vi.mocked(api.saveProjectState).mock.calls[0][0].groups?.map((g) => g.name)).toEqual(['Segundo', 'Primero']);
+    expect(vi.mocked(api.saveProjectState).mock.calls[0][0].groups?.map((g) => g.name)).toEqual([
+      'Segundo',
+      'Primero',
+    ]);
   });
   it('mantiene un encabezado sincronizado cuando el grupo está vacío', async () => {
-    vi.mocked(api.project).mockResolvedValueOnce({ ...structuredClone(project), groups: [...project.groups!, { id: 'g3', name: 'Vacío', position: 2 }] });
+    vi.mocked(api.project).mockResolvedValueOnce({
+      ...structuredClone(project),
+      groups: [...project.groups!, { id: 'g3', name: 'Vacío', position: 2 }],
+    });
     await open();
     expect(screen.getByRole('button', { name: /Vacío/ })).toBeInTheDocument();
     expect(document.querySelectorAll('.timeline-group-row')).toHaveLength(3);
@@ -71,7 +127,9 @@ describe('F2 organización', () => {
     fireEvent.click(trigger);
     expect(menu).toHaveAttribute('open');
     expect(within(menu).getByText('Tarea A')).toBeInTheDocument();
-    fireEvent.change(within(menu).getByRole('combobox', { name: 'Grupo de Tarea A' }), { target: { value: 'g2' } });
+    fireEvent.change(within(menu).getByRole('combobox', { name: 'Grupo de Tarea A' }), {
+      target: { value: 'g2' },
+    });
     await waitFor(() => expect(vi.mocked(api.saveProjectState)).toHaveBeenCalled());
     expect(vi.mocked(api.saveProjectState).mock.calls[0][0].tasks[0].groupId).toBe('g2');
     fireEvent.keyDown(menu, { key: 'Escape' });
@@ -88,18 +146,27 @@ describe('F2 organización', () => {
     const field = within(dialog).getByLabelText('Nota');
     fireEvent.change(field, { target: { value: 'Una nota\nmultilínea' } });
     fireEvent.click(within(dialog).getByRole('button', { name: 'Guardar' }));
-    await waitFor(() => expect(within(dialog).getByRole('alert')).toHaveTextContent('No se pudo guardar'));
+    await waitFor(() =>
+      expect(within(dialog).getByRole('alert')).toHaveTextContent('No se pudo guardar'),
+    );
     expect(field).toHaveValue('Una nota\nmultilínea');
     fireEvent.click(within(dialog).getByRole('button', { name: 'Guardar' }));
-    await waitFor(() => expect(within(dialog).getByRole('status')).toHaveTextContent('Nota guardada.'));
+    await waitFor(() =>
+      expect(within(dialog).getByRole('status')).toHaveTextContent('Nota guardada.'),
+    );
     expect(screen.getByRole('dialog', { name: /Nota · Tarea A/ })).toBeInTheDocument();
     fireEvent.click(within(dialog).getByRole('button', { name: 'Cerrar' }));
-    await waitFor(() => expect(screen.queryByRole('dialog', { name: /Nota · Tarea A/ })).not.toBeInTheDocument());
+    await waitFor(() =>
+      expect(screen.queryByRole('dialog', { name: /Nota · Tarea A/ })).not.toBeInTheDocument(),
+    );
     expect(api.saveProjectState).toHaveBeenCalledTimes(2);
     expect(within(taskMenu).getByRole('button', { name: 'Ver o editar nota' })).toBeInTheDocument();
   });
   it('muestra marcas persistentes y guarda notas de grupo con deshacer', async () => {
-    vi.mocked(api.project).mockResolvedValueOnce({ ...structuredClone(project), tasks: [{ ...project.tasks[0], note: 'Anotación' }, project.tasks[1]] });
+    vi.mocked(api.project).mockResolvedValueOnce({
+      ...structuredClone(project),
+      tasks: [{ ...project.tasks[0], note: 'Anotación' }, project.tasks[1]],
+    });
     await open();
     expect(document.querySelectorAll('.task-note-mark')).toHaveLength(1);
     expect(document.querySelectorAll('.group-note-mark')).toHaveLength(0);
@@ -114,14 +181,21 @@ describe('F2 organización', () => {
     expect(screen.getByRole('button', { name: 'Nota del grupo: Primero' })).toBeInTheDocument();
     expect(vi.mocked(api.saveProjectState).mock.calls[0][0].groups?.[0].note).toBe('Nota de grupo');
     fireEvent.click(within(dialog).getByRole('button', { name: 'Cerrar' }));
-    await waitFor(() => expect(screen.queryByRole('dialog', { name: /Nota · Primero/ })).not.toBeInTheDocument());
+    await waitFor(() =>
+      expect(screen.queryByRole('dialog', { name: /Nota · Primero/ })).not.toBeInTheDocument(),
+    );
     fireEvent.click(screen.getByRole('button', { name: /Deshacer/ }));
     await waitFor(() => expect(document.querySelectorAll('.group-note-mark')).toHaveLength(0));
   });
   it('exige confirmación y palabra antes de eliminar sin borrar tareas', async () => {
     await open();
     fireEvent.click(screen.getByLabelText('Opciones del grupo: Primero'));
-    fireEvent.click(within(screen.getByLabelText('Opciones del grupo: Primero').closest('details')!).getByRole('button', { name: 'Eliminar grupo' }));
+    fireEvent.click(
+      within(screen.getByLabelText('Opciones del grupo: Primero').closest('details')!).getByRole(
+        'button',
+        { name: 'Eliminar grupo' },
+      ),
+    );
     const dialog = screen.getByRole('dialog', { name: 'Eliminar grupo' });
     expect(within(dialog).getByText(/se conservarán sin grupo/i)).toBeInTheDocument();
     fireEvent.click(within(dialog).getByRole('button', { name: 'Continuar' }));

@@ -1,0 +1,16 @@
+node_modules
+.worktrees
+dist
+dist-server
+test-results
+playwright-report
+coverage
+package-lock.json
+02-DOCS
+01-TOOLS
+.rsc
+.claude
+.codex
+.env*
+
+migrations

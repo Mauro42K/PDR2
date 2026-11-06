@@ -18,7 +18,11 @@ describe('positionRowActions', () => {
   it('moves a panel inward when its trigger is near the left viewport edge', () => {
     vi.stubGlobal('innerWidth', 820);
     vi.stubGlobal('innerHeight', 1180);
-    const { menu, panel } = openMenu({ left: 80, right: 124, top: 400, bottom: 444 } as DOMRect, 260, 260);
+    const { menu, panel } = openMenu(
+      { left: 80, right: 124, top: 400, bottom: 444 } as DOMRect,
+      260,
+      260,
+    );
 
     positionRowActions(menu);
 
@@ -32,7 +36,11 @@ describe('positionRowActions', () => {
   it('clamps the panel horizontally and opens above a low trigger when needed', () => {
     vi.stubGlobal('innerWidth', 820);
     vi.stubGlobal('innerHeight', 600);
-    const { menu, panel } = openMenu({ left: 770, right: 814, top: 520, bottom: 564 } as DOMRect, 260, 300);
+    const { menu, panel } = openMenu(
+      { left: 770, right: 814, top: 520, bottom: 564 } as DOMRect,
+      260,
+      300,
+    );
 
     positionRowActions(menu);
 

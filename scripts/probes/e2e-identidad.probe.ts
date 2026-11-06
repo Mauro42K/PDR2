@@ -11,11 +11,18 @@ describe('identidad del servidor E2E (CON-02)', () => {
     const espia = await preparar();
     const ocupante: Server = createServer();
     await new Promise<void>((resolver, rechazar) => {
-      ocupante.once('error', () => rechazar(new Error('No se pudo reservar el puerto 3301 para la prueba: está en uso.')));
+      ocupante.once('error', () =>
+        rechazar(new Error('No se pudo reservar el puerto 3301 para la prueba: está en uso.')),
+      );
       ocupante.listen(3301, '127.0.0.1', resolver);
     });
     const candidata = 'postgres://pdr2:clave-no-usada@127.0.0.1:55432/pdr2_test';
-    const resultado = await correr('npm', ['run', 'test:e2e'], { PDR2_TEST_DATABASE_URL: candidata }, espia.entorno);
+    const resultado = await correr(
+      'npm',
+      ['run', 'test:e2e'],
+      { PDR2_TEST_DATABASE_URL: candidata },
+      espia.entorno,
+    );
     await new Promise<void>((resolver) => ocupante.close(() => resolver()));
 
     expect(resultado.codigo).not.toBe(0);
@@ -25,20 +32,38 @@ describe('identidad del servidor E2E (CON-02)', () => {
   }, 60_000);
 
   it('un servidor ajeno que responde sin el runId esperado se rechaza', async () => {
-    const ajeno = crearHttp((_req, res) => { res.setHeader('content-type', 'application/json'); res.end('{"status":"ok"}'); });
+    const ajeno = crearHttp((_req, res) => {
+      res.setHeader('content-type', 'application/json');
+      res.end('{"status":"ok"}');
+    });
     await new Promise<void>((resolver) => ajeno.listen(0, '127.0.0.1', resolver));
     const puerto = (ajeno.address() as AddressInfo).port;
-    await expect(esperarIdentidad({ url: `http://127.0.0.1:${puerto}`, token: 'token-esperado', tiempoMs: 3000, vivo: () => true }))
-      .rejects.toThrow('no coincide');
+    await expect(
+      esperarIdentidad({
+        url: `http://127.0.0.1:${puerto}`,
+        token: 'token-esperado',
+        tiempoMs: 3000,
+        vivo: () => true,
+      }),
+    ).rejects.toThrow('no coincide');
     await new Promise<void>((resolver) => ajeno.close(() => resolver()));
   }, 30_000);
 
   it('el servidor que responde con el runId de esta ejecución se acepta', async () => {
-    const propio = crearHttp((_req, res) => { res.setHeader('content-type', 'application/json'); res.end('{"status":"ok","runId":"token-esperado"}'); });
+    const propio = crearHttp((_req, res) => {
+      res.setHeader('content-type', 'application/json');
+      res.end('{"status":"ok","runId":"token-esperado"}');
+    });
     await new Promise<void>((resolver) => propio.listen(0, '127.0.0.1', resolver));
     const puerto = (propio.address() as AddressInfo).port;
-    await expect(esperarIdentidad({ url: `http://127.0.0.1:${puerto}`, token: 'token-esperado', tiempoMs: 3000, vivo: () => true }))
-      .resolves.toBeUndefined();
+    await expect(
+      esperarIdentidad({
+        url: `http://127.0.0.1:${puerto}`,
+        token: 'token-esperado',
+        tiempoMs: 3000,
+        vivo: () => true,
+      }),
+    ).resolves.toBeUndefined();
     await new Promise<void>((resolver) => propio.close(() => resolver()));
   }, 30_000);
 

@@ -8,12 +8,20 @@ describe('npm run test:e2e rechaza un destino incorrecto antes de reservar puert
   it('sale con error, nombra el destino y no hay conexiones, migración ni procesos hijos', async () => {
     const espia = await preparar();
     let conexiones = 0;
-    const listener = createServer((socket) => { conexiones += 1; socket.destroy(); });
+    const listener = createServer((socket) => {
+      conexiones += 1;
+      socket.destroy();
+    });
     await new Promise<void>((resolver) => listener.listen(0, '127.0.0.1', resolver));
     const puerto = (listener.address() as AddressInfo).port;
 
     const candidata = `postgres://pdr2:clave-no-usada@127.0.0.1:${puerto}/pdr2_dev`;
-    const resultado = await correr('npm', ['run', 'test:e2e'], { PDR2_TEST_DATABASE_URL: candidata, DATABASE_URL: candidata }, espia.entorno);
+    const resultado = await correr(
+      'npm',
+      ['run', 'test:e2e'],
+      { PDR2_TEST_DATABASE_URL: candidata, DATABASE_URL: candidata },
+      espia.entorno,
+    );
     await new Promise<void>((resolver) => listener.close(() => resolver()));
 
     expect(resultado.codigo).not.toBe(0);
@@ -22,6 +30,8 @@ describe('npm run test:e2e rechaza un destino incorrecto antes de reservar puert
     expect(resultado.salida).not.toContain('clave-no-usada');
     expect(conexiones).toBe(0);
     expect(await espia.llamadas()).toEqual([]);
-    expect(await espia.llamadas()).not.toEqual(expect.arrayContaining([expect.stringMatching(/^conexion:/)]));
+    expect(await espia.llamadas()).not.toEqual(
+      expect.arrayContaining([expect.stringMatching(/^conexion:/)]),
+    );
   }, 60_000);
 });

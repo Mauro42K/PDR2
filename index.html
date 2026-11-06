@@ -7,7 +7,12 @@
     <meta name="description" content="Planificador local de proyectos PDR 2.0" />
     <link rel="icon" type="image/svg+xml" href="/pdr2-mark.svg" />
     <title>PDR 2.0</title>
-      <script>try{var t=localStorage.getItem("pdr2-theme");if(t==="light"||t==="dark")document.documentElement.dataset.theme=t}catch(e){}</script>
+    <script>
+      try {
+        var t = localStorage.getItem('pdr2-theme');
+        if (t === 'light' || t === 'dark') document.documentElement.dataset.theme = t;
+      } catch (e) {}
+    </script>
   </head>
   <body>
     <div id="root"></div>

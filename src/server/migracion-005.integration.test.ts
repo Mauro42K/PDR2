@@ -26,33 +26,88 @@ describe.skipIf(!enabled)('migración 005 · up → down → up en base descarta
     const veredicto = verificarDestino(process.env.DATABASE_URL ?? '');
     if (veredicto.tipo === 'rechazado') throw new Error(veredicto.mensaje);
     const base = new URL(veredicto.destino.url);
-    const adminUrl = new URL(base.href); adminUrl.pathname = '/postgres';
-    const dbUrl = new URL(base.href); dbUrl.pathname = `/${databaseName}`;
+    const adminUrl = new URL(base.href);
+    adminUrl.pathname = '/postgres';
+    const dbUrl = new URL(base.href);
+    dbUrl.pathname = `/${databaseName}`;
 
     admin = new Client({ connectionString: adminUrl.href });
     await admin.connect();
     await admin.query(`CREATE DATABASE ${databaseName}`);
-    const migrations = { databaseUrl: dbUrl.href, dir: 'migrations', migrationsTable: 'pgmigrations', verbose: false } as const;
+    const migrations = {
+      databaseUrl: dbUrl.href,
+      dir: 'migrations',
+      migrationsTable: 'pgmigrations',
+      verbose: false,
+    } as const;
 
     await runner({ ...migrations, direction: 'up' });
     pool = new Pool({ connectionString: dbUrl.href, max: 1 });
     const projectId = crypto.randomUUID();
-    await pool.query('INSERT INTO projects(id, name, last_task_number) VALUES ($1, $2, 9)', [projectId, 'Migración 005']);
+    await pool.query('INSERT INTO projects(id, name, last_task_number) VALUES ($1, $2, 9)', [
+      projectId,
+      'Migración 005',
+    ]);
     // Números con huecos (1, 4, 9): lo que la app asigna cuando se borran tareas. Estado no trivial.
     const seed = [
-      { name: 'Completada', position: 0, number: 1, status: 'completed', progress: 100, milestone: false, start: '2026-01-05', end: '2026-01-07' },
-      { name: 'En curso', position: 1, number: 4, status: 'in_progress', progress: 40, milestone: false, start: '2026-01-08', end: '2026-01-12' },
-      { name: 'Hito', position: 2, number: 9, status: 'blocked', progress: 0, milestone: true, start: '2026-01-15', end: '2026-01-15' }
+      {
+        name: 'Completada',
+        position: 0,
+        number: 1,
+        status: 'completed',
+        progress: 100,
+        milestone: false,
+        start: '2026-01-05',
+        end: '2026-01-07',
+      },
+      {
+        name: 'En curso',
+        position: 1,
+        number: 4,
+        status: 'in_progress',
+        progress: 40,
+        milestone: false,
+        start: '2026-01-08',
+        end: '2026-01-12',
+      },
+      {
+        name: 'Hito',
+        position: 2,
+        number: 9,
+        status: 'blocked',
+        progress: 0,
+        milestone: true,
+        start: '2026-01-15',
+        end: '2026-01-15',
+      },
     ];
     for (const row of seed) {
       await pool.query(
         'INSERT INTO tasks(id, project_id, name, start_date, end_date, position, number, status, progress, is_milestone) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)',
-        [crypto.randomUUID(), projectId, row.name, row.start, row.end, row.position, row.number, row.status, row.progress, row.milestone]
+        [
+          crypto.randomUUID(),
+          projectId,
+          row.name,
+          row.start,
+          row.end,
+          row.position,
+          row.number,
+          row.status,
+          row.progress,
+          row.milestone,
+        ],
       );
     }
     const snapshot = async () => {
-      const tasks = (await pool!.query('SELECT name, start_date::text AS start, end_date::text AS end, position, number, status, progress, is_milestone FROM tasks WHERE project_id = $1 ORDER BY position', [projectId])).rows;
-      const project = (await pool!.query('SELECT last_task_number FROM projects WHERE id = $1', [projectId])).rows[0];
+      const tasks = (
+        await pool!.query(
+          'SELECT name, start_date::text AS start, end_date::text AS end, position, number, status, progress, is_milestone FROM tasks WHERE project_id = $1 ORDER BY position',
+          [projectId],
+        )
+      ).rows;
+      const project = (
+        await pool!.query('SELECT last_task_number FROM projects WHERE id = $1', [projectId])
+      ).rows[0];
       return { tasks, last: project?.last_task_number as number | undefined };
     };
     const antes = await snapshot();
@@ -60,14 +115,22 @@ describe.skipIf(!enabled)('migración 005 · up → down → up en base descarta
     expect(antes.last).toBe(9);
 
     await runner({ ...migrations, direction: 'down', count: 1 });
-    const columnas = (await pool.query("SELECT column_name FROM information_schema.columns WHERE table_name = 'tasks'")).rows.map((r) => r.column_name as string);
-    expect(columnas).not.toEqual(expect.arrayContaining(['number', 'status', 'progress', 'is_milestone']));
+    const columnas = (
+      await pool.query(
+        "SELECT column_name FROM information_schema.columns WHERE table_name = 'tasks'",
+      )
+    ).rows.map((r) => r.column_name as string);
+    expect(columnas).not.toEqual(
+      expect.arrayContaining(['number', 'status', 'progress', 'is_milestone']),
+    );
 
     await runner({ ...migrations, direction: 'up' });
     const despues = await snapshot();
 
     // Sobrevive: nombre, fechas, posición y orden.
-    expect(despues.tasks.map((t) => [t.name, t.start, t.end, t.position])).toEqual(antes.tasks.map((t) => [t.name, t.start, t.end, t.position]));
+    expect(despues.tasks.map((t) => [t.name, t.start, t.end, t.position])).toEqual(
+      antes.tasks.map((t) => [t.name, t.start, t.end, t.position]),
+    );
     // No vuelve: números estables. Se recalculan desde la posición, así que cambian (1, 4, 9 → 1, 2, 3).
     expect(despues.tasks.map((t) => t.number)).toEqual([1, 2, 3]);
     // No vuelve: estado, avance y marca de hito. Quedan en sus valores por defecto.
